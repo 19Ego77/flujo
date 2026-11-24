@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Organiza tus actividades: captura, aclara, organiza, revisa y haz.">
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141815" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flujo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Flujo — organizador personal</title>
+<style>
+/* ---------- Tokens de diseño ---------- */
+:root{
+  --bg:#F6F1E7; --surface:#FFFDF8; --surface-2:#EFE8D9; --ink:#1F2420; --muted:#5B635C;
+  --border:#D9D0BC; --accent:#1F6B45; --accent-ink:#FFFFFF; --accent-soft:#DDEBDF;
+  --ok:#2E6B3A; --err:#A3271B; --err-soft:#F6DDD8; --warn:#7A4F00; --warn-soft:#F3E3BF;
+  --shadow:0 1px 2px rgba(31,36,32,.08),0 6px 20px rgba(31,36,32,.06);
+  --backdrop:rgba(31,36,32,.45);
+  --font-ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --t-xs:.8125rem; --t-sm:.9375rem; --t-md:1rem; --t-lg:1.25rem; --t-xl:1.75rem;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r1:6px; --r2:12px; --r-pill:999px; --hit:44px;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#141815; --surface:#1D221E; --surface-2:#262C27; --ink:#ECE7DA; --muted:#A9B0A8;
+  --border:#3A423B; --accent:#7BC79A; --accent-ink:#0F2218; --accent-soft:#243A2D;
+  --ok:#8FD19E; --err:#F2938A; --err-soft:#43211D; --warn:#E9BC5E; --warn-soft:#3D3115;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3); --backdrop:rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141815; --surface:#1D221E; --surface-2:#262C27; --ink:#ECE7DA; --muted:#A9B0A8;
+    --border:#3A423B; --accent:#7BC79A; --accent-ink:#0F2218; --accent-soft:#243A2D;
+    --ok:#8FD19E; --err:#F2938A; --err-soft:#43211D; --warn:#E9BC5E; --warn-soft:#3D3115;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3); --backdrop:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:var(--t-md)/1.5 var(--font-ui)}
+h1,h2,h3,p{margin:0}
+h1{font:600 var(--t-xl)/1.2 var(--font-display);letter-spacing:-.01em}
+h2{font:600 var(--t-lg)/1.3 var(--font-display)}
+h3{font:600 var(--t-xs)/1.3 var(--font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:var(--r1)}
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.skip{position:absolute;left:var(--s2);top:-60px;background:var(--accent);color:var(--accent-ink);padding:var(--s2) var(--s4);border-radius:var(--r1);z-index:50}
+.skip:focus{top:var(--s2)}
+.muted{color:var(--muted)} .small{font-size:var(--t-sm)}
+/* ---------- Estructura ---------- */
+.app{min-height:100vh}
+.side{display:none}
+.col{min-width:0}
+.capture{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:var(--s3) var(--s4);padding-top:calc(var(--s3) + env(safe-area-inset-top))}
+.capture form{display:flex;gap:var(--s2);max-width:880px;margin:0 auto}
+.capture input{flex:1;min-width:0}
+@media (max-width:479px){.capture .btn span{display:none}.capture .btn{width:var(--hit);padding:0}}
+.mic-status{max-width:880px;margin:var(--s1) auto 0;font-size:var(--t-xs);color:var(--muted);min-height:1.2em}
+main{padding:var(--s5) var(--s4) 104px;max-width:912px;margin:0 auto}
+main:focus{outline:none}
+main.wide{max-width:1180px}
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:10;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+.bottom button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:56px;border:0;background:none;font-size:.6875rem;color:var(--muted);cursor:pointer}
+.bottom button[aria-current="page"]{color:var(--accent);font-weight:600}
+.bottom button:hover{color:var(--ink)}
+.bottom .count{position:absolute;top:6px;left:calc(50% + 6px)}
+@media (min-width:900px){
+  .app{display:grid;grid-template-columns:264px 1fr}
+  .side{display:flex;flex-direction:column;gap:var(--s4);position:sticky;top:0;height:100vh;overflow:auto;padding:var(--s5) var(--s3);border-right:1px solid var(--border);background:var(--surface)}
+  .bottom{display:none}
+  main{padding:var(--s6) var(--s6) var(--s7)}
+  .capture{padding:var(--s4) var(--s6)}
+}
+.brand{padding:0 var(--s3)}
+.brand b{font:600 var(--t-lg) var(--font-display)}
+.brand span{display:block;font-size:var(--t-xs);color:var(--muted)}
+.nav{display:flex;flex-direction:column;gap:2px;list-style:none;margin:0;padding:0}
+.nav h3{padding:var(--s4) var(--s3) var(--s1)}
+.nav button{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:var(--hit);padding:0 var(--s3);border:0;border-radius:var(--r1);background:none;text-align:left;cursor:pointer}
+.nav button:hover{background:var(--surface-2)}
+.nav button:active{background:var(--border)}
+.nav button[aria-current="page"]{background:var(--accent-soft);font-weight:600}
+.nav .lbl{flex:1}
+.count{min-width:22px;padding:0 6px;border-radius:var(--r-pill);background:var(--surface-2);color:var(--ink);font-size:var(--t-xs);font-weight:600;text-align:center;line-height:22px}
+.count.alert{background:var(--warn-soft);color:var(--warn)}
+/* ---------- Componentes ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);min-height:var(--hit);padding:0 var(--s4);border:1px solid var(--border);border-radius:var(--r1);background:var(--surface);font-weight:600;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--err);border-color:var(--err)}
+.btn.danger:hover{background:var(--err-soft)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn:disabled,.icon-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:var(--hit);height:var(--hit);flex:none;border:1px solid transparent;border-radius:var(--r1);background:none;color:var(--muted);cursor:pointer}
+.icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+.icon-btn:active{transform:translateY(1px)}
+.icon-btn.mic{border-color:var(--accent);color:var(--accent)}
+.icon-btn.mic.rec{background:var(--err);border-color:var(--err);color:var(--surface);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.65}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+input[type=text],input[type=search],input[type=date],input[type=time],select,textarea{width:100%;min-height:var(--hit);padding:var(--s2) var(--s3);border:1px solid var(--border);border-radius:var(--r1);background:var(--surface)}
+input:hover,select:hover,textarea:hover{border-color:var(--muted)}
+textarea{min-height:96px;resize:vertical}
+label,.label{display:block;font-size:var(--t-sm);font-weight:600;margin-bottom:var(--s1)}
+.field{margin-bottom:var(--s4)}
+.field .hint{font-size:var(--t-xs);color:var(--muted);margin-top:var(--s1)}
+.field .error{font-size:var(--t-sm);color:var(--err);margin-top:var(--s1)}
+.with-mic{display:flex;gap:var(--s2)}
+.with-mic input{flex:1;min-width:0}
+.grid2{display:grid;gap:var(--s4)}
+@media (min-width:560px){.grid2{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:var(--s5)}
+.page-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--s4);margin-bottom:var(--s5)}
+.page-head p{color:var(--muted);max-width:56ch;margin-top:var(--s1)}
+.group{margin-bottom:var(--s5)}
+.group>h3{margin-bottom:var(--s2);display:flex;align-items:center;gap:var(--s2)}
+.rows{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2)}
+.row{display:flex;align-items:flex-start;gap:var(--s1);padding:var(--s2) var(--s2) var(--s2) var(--s2);border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0}
+.row-main{flex:1;min-width:0;padding:10px var(--s2)}
+.row-text{overflow-wrap:anywhere}
+.row-note{font-size:var(--t-sm);color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:var(--s1)}
+.row-acts{display:flex;flex-wrap:wrap;justify-content:flex-end}
+.meta{display:flex;flex-wrap:wrap;gap:var(--s1);margin-top:var(--s1)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:1px var(--s2);border-radius:var(--r-pill);background:var(--surface-2);font-size:var(--t-xs);color:var(--ink)}
+.badge.accent{background:var(--accent-soft)}
+.badge.warn{background:var(--warn-soft);color:var(--warn);font-weight:600}
+.badge.err{background:var(--err-soft);color:var(--err);font-weight:600}
+.tick{display:inline-flex;align-items:center;justify-content:center;width:var(--hit);height:var(--hit);flex:none;border:0;background:none;cursor:pointer;color:transparent}
+.tick::before{content:"";position:absolute;width:24px;height:24px;border:2px solid var(--muted);border-radius:50%}
+.tick{position:relative}
+.tick .ic{position:relative;width:16px;height:16px;stroke-width:2.6}
+.tick:hover{color:var(--accent)} .tick:hover::before{border-color:var(--accent);background:var(--accent-soft)}
+.tick:active::before{background:var(--accent)}
+.empty{text-align:center;padding:var(--s7) var(--s4);border:1px dashed var(--border);border-radius:var(--r2)}
+.empty>.ic{width:36px;height:36px;color:var(--muted);margin-bottom:var(--s3)}
+.empty p{color:var(--muted);max-width:44ch;margin:var(--s2) auto var(--s4)}
+.empty .acts{display:flex;flex-wrap:wrap;gap:var(--s2);justify-content:center}
+.filters{display:grid;gap:var(--s3);margin-bottom:var(--s5)}
+@media (min-width:640px){.filters{grid-template-columns:repeat(3,1fr)}}
+.notice{display:flex;gap:var(--s3);padding:var(--s3) var(--s4);border-radius:var(--r1);background:var(--warn-soft);color:var(--warn);font-size:var(--t-sm);margin-bottom:var(--s4)}
+.notice.info{background:var(--accent-soft);color:var(--ink)}
+/* Asistente de aclarar */
+.clarify{display:grid;gap:var(--s5);align-items:start}
+@media (min-width:1100px){.clarify{grid-template-columns:minmax(0,1fr) 420px}}
+.stuff{font:500 var(--t-lg)/1.35 var(--font-display);padding:var(--s3) var(--s4);border-left:3px solid var(--accent);background:var(--surface-2);border-radius:0 var(--r1) var(--r1) 0;margin:var(--s3) 0 var(--s5);overflow-wrap:anywhere}
+.q{font:600 var(--t-lg)/1.3 var(--font-display);margin-bottom:var(--s3)}
+.choices{display:grid;gap:var(--s2)}
+.choice{display:flex;align-items:center;gap:var(--s3);width:100%;min-height:60px;padding:var(--s3) var(--s4);border:1px solid var(--border);border-radius:var(--r1);background:var(--surface);text-align:left;cursor:pointer}
+.choice:hover{border-color:var(--accent);background:var(--accent-soft)}
+.choice:active{transform:translateY(1px)}
+.choice b{display:block} .choice span span{font-size:var(--t-sm);color:var(--muted)}
+.choice>.ic{color:var(--accent)}
+.wiz-foot{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--border)}
+.timer{font:600 2.5rem/1 var(--font-display);font-variant-numeric:tabular-nums;margin:var(--s3) 0}
+.timer.over{color:var(--err)}
+.chips{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.chip input{position:absolute;opacity:0}
+.chip span{display:inline-flex;align-items:center;min-height:var(--hit);padding:0 var(--s4);border:1px solid var(--border);border-radius:var(--r-pill);background:var(--surface);cursor:pointer;font-weight:500}
+.chip span:hover{border-color:var(--accent)}
+.chip input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.diagram svg{width:100%;height:auto;display:block}
+.dg-node{fill:var(--surface);stroke:var(--border);stroke-width:1.2}
+.dg-node.past{stroke:var(--accent);fill:var(--accent-soft)}
+.dg-node.on{stroke:var(--accent);stroke-width:3;fill:var(--accent-soft)}
+.dg-text{font:12px var(--font-ui);fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.dg-lab{font:600 12px var(--font-display);fill:var(--muted);text-anchor:middle}
+.dg-edge{fill:none;stroke:var(--muted);stroke-width:1.2}
+.dg-arrow{fill:var(--muted)}
+/* Revisión */
+.steps{list-style:none;margin:0 0 var(--s5);padding:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2)}
+.steps li{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);border-bottom:1px solid var(--border)}
+.steps li:last-child{border-bottom:0}
+.steps label{flex:1;display:flex;align-items:center;gap:var(--s3);min-height:var(--hit);margin:0;font-weight:500;cursor:pointer}
+.steps input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.steps small{display:block;color:var(--muted);font-weight:400}
+/* Diálogo y avisos */
+dialog{width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 24px);padding:0;border:1px solid var(--border);border-radius:var(--r2);background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+dialog::backdrop{background:var(--backdrop)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:var(--s3) var(--s3) var(--s3) var(--s5);border-bottom:1px solid var(--border)}
+.dlg-body{padding:var(--s5)}
+.dlg-foot{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--s2);padding:var(--s4) var(--s5);border-top:1px solid var(--border)}
+.dlg-foot .left{margin-right:auto}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:72px;z-index:60;display:flex;flex-direction:column;gap:var(--s2);width:min(480px,calc(100vw - 24px))}
+@media (min-width:900px){#toasts{bottom:var(--s5)}}
+.toast{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s2) var(--s2) var(--s4);border-radius:var(--r1);background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:var(--t-sm)}
+.toast.err{background:var(--err);color:var(--surface)}
+.toast span{flex:1}
+.toast button{min-height:var(--hit);padding:0 var(--s3);border:1px solid currentColor;border-radius:var(--r1);background:none;color:inherit;font-weight:600;cursor:pointer}
+.toast button:hover{opacity:.8}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r1);overflow:hidden}
+.seg label{margin:0}
+.seg input{position:absolute;opacity:0}
+.seg span{display:flex;align-items:center;min-height:var(--hit);padding:0 var(--s4);cursor:pointer;font-weight:500}
+.seg span:hover{background:var(--surface-2)}
+.seg input:checked+span{background:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+span{outline:3px solid var(--accent);outline-offset:-3px}
+.check{display:flex;align-items:center;gap:var(--s3);min-height:var(--hit);font-weight:500;cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.stack>*+*{margin-top:var(--s5)}
+.btn-row{display:flex;flex-wrap:wrap;gap:var(--s2)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 3h10v10H3z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 00-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0012 3z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h13v16H5zM9 4v16M12 8h3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 00-14.5-4M4 4v4h4M4 13a8 8 0 0014.5 4M20 20v-4h-4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M16 5v4M8 15v4"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 00-3 3v5a3 3 0 006 0V6a3 3 0 00-3-3zM6 11a6 6 0 0012 0M12 17v4M9 21h6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16zM13 7l4 4"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 7L4 11l4 4M4 11h11a5 5 0 010 10h-3"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></symbol>
+</svg>
+
+<a class="skip" href="#main">Saltar al contenido</a>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><b>Flujo</b><span>Capturar, aclarar, organizar, revisar, hacer</span></div>
+    <nav aria-label="Secciones"><ul class="nav" id="sideNav"></ul></nav>
+  </aside>
+  <div class="col">
+    <header class="capture">
+      <form data-f="capture" autocomplete="off">
+        <label class="sr" for="cap">Capturar algo en la bandeja de entrada</label>
+        <input id="cap" type="text" maxlength="300" enterkeyhint="done" placeholder="¿Qué tienes en la cabeza? Escríbelo o díctalo">
+        <button type="button" class="icon-btn mic" id="capMic" data-a="mic" data-target="cap" aria-pressed="false" aria-label="Dictar con la voz"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></button>
+        <button type="submit" class="btn" aria-label="Capturar en la bandeja de entrada"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span>Capturar</span></button>
+      </form>
+      <p class="mic-status" id="micStatus" role="status" aria-live="polite"></p>
+    </header>
+    <main id="main" tabindex="-1"></main>
+  </div>
+</div>
+<nav class="bottom" id="bottomNav" aria-label="Secciones principales"></nav>
+<dialog id="dlg"></dialog>
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ================= Datos ================= */
+const KEY = 'flujo-gtd-v1';
+const CONTEXTS = ['Llamadas','Ordenador','Recados','Oficina','Casa','Agenda (con personas)','Leer / Revisar','Cualquier lugar'];
+const ENERGY = {baja:'Energía baja', media:'Energía media', alta:'Energía alta'};
+const MINUTES = [5,15,30,60,120];
+const LISTS = ['inbox','next','calendar','waiting','someday','reference','done','trash'];
+const OPEN = ['next','calendar','waiting'];
+const VIEWS = {
+  inbox:['Bandeja de entrada','inbox'], next:['Acciones siguientes','list'], calendar:['Calendario','calendar'],
+  waiting:['En espera','clock'], projects:['Proyectos','folder'], someday:['Algún día / Tal vez','bulb'],
+  reference:['Referencia','book'], review:['Revisión semanal','refresh'], done:['Hechas','done'],
+  trash:['Papelera','trash'], settings:['Ajustes y privacidad','sliders']
+};
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ANDROID = /Android/i.test(navigator.userAgent);
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let installEvt = null;
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic = n => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => iso(new Date());
+const dayDiff = isoDate => Math.round((new Date(isoDate+'T12:00') - new Date(today()+'T12:00')) / 864e5);
+const daysSince = ts => Math.floor((Date.now() - ts) / 864e5);
+const plural = (n, one, many) => `${n} ${n===1 ? one : many}`;
+function dateLabel(d){
+  const n = dayDiff(d);
+  if (n === 0) return 'Hoy'; if (n === 1) return 'Mañana'; if (n === -1) return 'Ayer';
+  const s = new Intl.DateTimeFormat('es-EC',{weekday:'long',day:'numeric',month:'long'}).format(new Date(d+'T12:00'));
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+const agoLabel = ts => { const n = daysSince(ts); return n <= 0 ? 'hoy' : n === 1 ? 'hace 1 día' : `hace ${n} días`; };
+
+function blank(){ return {items:[], projects:[], review:{checks:{}, last:null}, prefs:{theme:'auto', lang:'es-EC', autoAdd:false}}; }
+function normalize(d){
+  if (!d || !Array.isArray(d.items) || !Array.isArray(d.projects)) throw new Error('formato');
+  const b = blank(), str = (v, max) => typeof v === 'string' ? v.slice(0, max) : '';
+  b.projects = d.projects.filter(p => p && typeof p.id === 'string' && typeof p.name === 'string').map(p => ({
+    id:p.id, name:str(p.name,300), notes:str(p.notes,5000), status:p.status === 'done' ? 'done' : 'active', createdAt:+p.createdAt || Date.now()}));
+  const pids = new Set(b.projects.map(p => p.id));
+  b.items = d.items.filter(i => i && typeof i.id === 'string' && typeof i.text === 'string' && i.text.trim()).map(i => ({
+    id:i.id, text:str(i.text,300), notes:str(i.notes,5000), list:LISTS.includes(i.list) ? i.list : 'inbox',
+    prevList:LISTS.includes(i.prevList) ? i.prevList : '', context:CONTEXTS.includes(i.context) ? i.context : '',
+    minutes:MINUTES.includes(+i.minutes) ? +i.minutes : 0, energy:ENERGY[i.energy] ? i.energy : '',
+    projectId:pids.has(i.projectId) ? i.projectId : '', date:/^\d{4}-\d{2}-\d{2}$/.test(i.date) ? i.date : '',
+    time:/^\d{2}:\d{2}$/.test(i.time) ? i.time : '', who:str(i.who,120),
+    createdAt:+i.createdAt || Date.now(), movedAt:+i.movedAt || 0, doneAt:+i.doneAt || 0}));
+  if (d.review && typeof d.review === 'object'){ b.review.last = +d.review.last || null; if (d.review.checks && typeof d.review.checks === 'object') for (const k of REVIEW_KEYS) b.review.checks[k] = !!d.review.checks[k]; }
+  if (d.prefs && typeof d.prefs === 'object'){
+    if (['auto','light','dark'].includes(d.prefs.theme)) b.prefs.theme = d.prefs.theme;
+    if (['es-EC','es-ES','es-MX','es-US'].includes(d.prefs.lang)) b.prefs.lang = d.prefs.lang;
+    b.prefs.autoAdd = !!d.prefs.autoAdd;
+  }
+  return b;
+}
+const REVIEW_KEYS = ['inbox','next','calendar','waiting','projects','someday'];
+let loadFailed = false;
+let state = (() => {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); if (!raw) return blank(); return normalize(JSON.parse(raw)); }
+  catch (e) { loadFailed = true; try { if (raw) localStorage.setItem(KEY+'-dañado', raw); } catch (_) {} return blank(); }
+})();
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch (e) { toast('No se pudo guardar en este navegador. Exporta una copia desde Ajustes para no perder cambios.', {error:true}); }
+}
+let undoSnap = null;
+function commit(fn, msg){
+  undoSnap = JSON.stringify(state);
+  fn(); save(); render();
+  if (msg) toast(msg, {undo:true});
+}
+const byId = id => state.items.find(i => i.id === id);
+const proj = id => state.projects.find(p => p.id === id);
+const inList = l => state.items.filter(i => i.list === l);
+const count = l => inList(l).length;
+const activeProjects = () => state.projects.filter(p => p.status === 'active');
+const projOpen = pid => state.items.filter(i => i.projectId === pid && OPEN.includes(i.list));
+const stalled = () => activeProjects().filter(p => !projOpen(p.id).length);
+const overdue = () => inList('calendar').filter(i => dayDiff(i.date) < 0);
+
+/* ================= Estado de interfaz ================= */
+const ui = {view:'inbox', projectId:'', filters:{ctx:'', min:'', energy:''}, refQuery:'', wiz:null};
+let timer = null;
+
+function go(view, extra){
+  ui.view = view; Object.assign(ui, extra || {});
+  if (view === 'clarify') ui.wiz = newWiz();
+  render();
+  const m = $('#main'); m.focus({preventScroll:true}); window.scrollTo(0,0);
+}
+
+/* ================= Navegación ================= */
+function navCount(v){
+  if (v === 'projects'){ const s = stalled().length; return s ? `<span class="count alert" title="Proyectos sin siguiente acción">${s}<span class="sr"> sin siguiente acción</span></span>` : ''; }
+  if (v === 'review'){ const l = state.review.last; return (!l || daysSince(l) >= 7) ? `<span class="count alert">${ic('warn').replace('class="ic"','class="ic" style="width:14px;height:14px;vertical-align:-2px"')}<span class="sr">pendiente</span></span>` : ''; }
+  if (v === 'calendar'){ const o = overdue().length; if (o) return `<span class="count alert">${o}<span class="sr"> atrasadas</span></span>`; }
+  if (['settings','done','trash'].includes(v)) return '';
+  const n = count(v); return n ? `<span class="count">${n}</span>` : '';
+}
+function renderNav(){
+  const cur = ui.view === 'clarify' ? 'inbox' : ui.view === 'project' ? 'projects' : ui.view;
+  const li = v => `<li><button data-a="nav" data-view="${v}" ${cur===v?'aria-current="page"':''}>${ic(VIEWS[v][1])}<span class="lbl">${VIEWS[v][0]}</span>${navCount(v)}</button></li>`;
+  $('#sideNav').innerHTML =
+    `<li><h3>Capturar y aclarar</h3></li>${li('inbox')}
+     <li><h3>Hacer</h3></li>${['next','calendar','waiting'].map(li).join('')}
+     <li><h3>Organizar</h3></li>${['projects','someday','reference'].map(li).join('')}
+     <li><h3>Revisar</h3></li>${['review','done','trash','settings'].map(li).join('')}`;
+  const short = {inbox:'Bandeja', next:'Acciones', calendar:'Calendario', projects:'Proyectos'};
+  const main4 = Object.keys(short);
+  $('#bottomNav').innerHTML = main4.map(v =>
+    `<button data-a="nav" data-view="${v}" ${cur===v?'aria-current="page"':''}>${ic(VIEWS[v][1])}<span>${short[v]}</span>${navCount(v)}</button>`).join('') +
+    `<button data-a="more" ${!main4.includes(cur)?'aria-current="page"':''}>${ic('more')}<span>Más</span></button>`;
+}
+
+/* ================= Piezas reutilizables ================= */
+function badges(it, o={}){
+  const b = [];
+  if (it.list === 'calendar' && it.date && !o.noDate) b.push(`<span class="badge ${dayDiff(it.date)<0?'err':''}">${dayDiff(it.date)<0?'Atrasada · ':''}${esc(dateLabel(it.date))}</span>`);
+  if (it.list === 'calendar' && it.time) b.push(`<span class="badge">${esc(it.time)}</span>`);
+  if (it.list === 'waiting') b.push(`<span class="badge accent">${esc(it.who || 'Alguien')}</span><span class="badge ${daysSince(it.movedAt)>=7?'warn':''}">Delegado ${agoLabel(it.movedAt)}</span>`);
+  if (it.list === 'next' && it.context && !o.noCtx) b.push(`<span class="badge">${esc(it.context)}</span>`);
+  if (it.list === 'next' && it.minutes) b.push(`<span class="badge">${it.minutes >= 60 ? it.minutes/60 + ' h' : it.minutes + ' min'}</span>`);
+  if (it.list === 'next' && it.energy) b.push(`<span class="badge">${ENERGY[it.energy]}</span>`);
+  if (it.projectId && !o.noProj && proj(it.projectId)) b.push(`<span class="badge accent">${esc(proj(it.projectId).name)}</span>`);
+  if (o.showList) b.push(`<span class="badge">${esc(VIEWS[it.list] ? VIEWS[it.list][0] : '')}</span>`);
+  if (it.list === 'inbox') b.push(`<span class="badge">Capturado ${agoLabel(it.createdAt)}</span>`);
+  if (it.list === 'done' && it.doneAt) b.push(`<span class="badge">Hecha ${agoLabel(it.doneAt)}</span>`);
+  return b.length ? `<div class="meta">${b.join('')}</div>` : '';
+}
+function row(it, o={}){
+  const acts = [];
+  const iconBtn = (a, icon, label) => `<button class="icon-btn" data-a="${a}" data-id="${it.id}" aria-label="${label}: ${esc(it.text)}" title="${label}">${ic(icon)}</button>`;
+  if (it.list === 'someday') acts.push(`<button class="btn ghost" data-a="activate" data-id="${it.id}">Activar</button>`);
+  if (it.list === 'trash' || it.list === 'done') acts.push(`<button class="btn ghost" data-a="restore" data-id="${it.id}">${ic('undo')}Restaurar</button>`);
+  if (it.list === 'trash') acts.push(iconBtn('purge','x','Eliminar para siempre'));
+  if (!['trash','done'].includes(it.list)) { acts.push(iconBtn('edit','edit','Editar')); acts.push(iconBtn('trash','trash','Mover a la papelera')); }
+  const tick = OPEN.includes(it.list) ? `<button class="tick" data-a="complete" data-id="${it.id}" aria-label="Marcar como ${it.list==='waiting'?'recibida':'hecha'}: ${esc(it.text)}" title="Marcar como ${it.list==='waiting'?'recibida':'hecha'}">${ic('check')}</button>` : '';
+  return `<li class="row">${tick}<div class="row-main"><span class="row-text">${esc(it.text)}</span>${badges(it,o)}${it.notes ? `<p class="row-note">${esc(it.notes)}</p>` : ''}</div><div class="row-acts">${acts.join('')}</div></li>`;
+}
+const rows = (list, o) => `<ul class="rows">${list.map(i => row(i,o)).join('')}</ul>`;
+const head = (title, sub, action='') => `<div class="page-head"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${action}</div>`;
+const empty = (icon, title, text, acts='') => `<div class="empty">${ic(icon)}<h2>${title}</h2><p>${text}</p><div class="acts">${acts}</div></div>`;
+const micBtn = target => SR ? `<button type="button" class="icon-btn mic" data-a="mic" data-target="${target}" aria-pressed="false" aria-label="Dictar con la voz">${ic('mic')}</button>` : '';
+const options = (list, sel, first) => (first !== undefined ? `<option value="">${first}</option>` : '') + list.map(([v,l]) => `<option value="${esc(v)}" ${String(v)===String(sel)?'selected':''}>${esc(l)}</option>`).join('');
+const ctxOpts = (sel, first) => options(CONTEXTS.map(c => [c,c]), sel, first);
+const minOpts = (sel, first) => options(MINUTES.map(m => [m, m >= 60 ? m/60 + ' h' : m + ' min']), sel, first);
+const enOpts = (sel, first) => options(Object.entries(ENERGY), sel, first);
+const projOpts = (sel, first, extra=[]) => options([...extra, ...activeProjects().map(p => [p.id, p.name])], sel, first);
+
+/* ================= Vistas ================= */
+const views = {
+  inbox(){
+    const l = inList('inbox');
+    if (!l.length) return head('Bandeja de entrada','Todo lo que ronda tu cabeza entra aquí primero. No decidas nada todavía: solo captura.') +
+      empty('inbox','La bandeja está vacía','Escribe o dicta arriba lo primero que te venga a la mente: pendientes, ideas, compromisos, recados.',
+        (SR ? `<button class="btn primary" data-a="mic-capture">${ic('mic')}Dictar ahora</button>` : `<button class="btn primary" data-a="focus-capture">${ic('plus')}Escribir algo</button>`) +
+        (!state.items.length && !state.projects.length ? `<button class="btn" data-a="seed">Cargar un ejemplo</button>` : ''));
+    return head('Bandeja de entrada','Captura sin decidir. Cuando tengas un momento, aclara cada elemento uno por uno.',
+      `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar ${plural(l.length,'elemento','elementos')}${ic('right')}</button>`) + rows(l);
+  },
+  next(){
+    const all = inList('next'), f = ui.filters;
+    if (!all.length) return head('Acciones siguientes','Lo que puedes hacer tan pronto como sea posible, agrupado por el lugar o la herramienta que necesitas.') +
+      empty('list','No hay acciones siguientes', count('inbox') ? 'Tienes elementos en la bandeja esperando que decidas su siguiente acción.' : 'Captura algo y aclara cuál es su siguiente acción física.',
+        count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar algo</button>`);
+    const rank = {baja:1, media:2, alta:3};
+    const l = all.filter(i => (!f.ctx || i.context === f.ctx) && (!f.min || !i.minutes || i.minutes <= +f.min) && (!f.energy || !i.energy || rank[i.energy] <= rank[f.energy]));
+    const filters = `<div class="filters">
+      <div><label for="f-ctx">¿Dónde estás?</label><select id="f-ctx" data-c="filter" data-k="ctx">${ctxOpts(f.ctx,'Cualquier contexto')}</select></div>
+      <div><label for="f-min">¿Cuánto tiempo tienes?</label><select id="f-min" data-c="filter" data-k="min">${minOpts(f.min,'Sin límite')}</select></div>
+      <div><label for="f-en">¿Cuánta energía tienes?</label><select id="f-en" data-c="filter" data-k="energy">${enOpts(f.energy,'Cualquiera')}</select></div></div>`;
+    const groups = CONTEXTS.concat('').map(c => [c, l.filter(i => i.context === c)]).filter(g => g[1].length);
+    const body = l.length ? groups.map(([c, g]) => `<section class="group"><h3>${esc(c || 'Sin contexto')} <span class="count">${g.length}</span></h3>${rows(g,{noCtx:true})}</section>`).join('')
+      : empty('list','Nada coincide con esos filtros','Hay acciones en la lista, pero ninguna encaja con el contexto, tiempo y energía que elegiste.',`<button class="btn primary" data-a="clear-filters">Quitar filtros</button>`);
+    return head('Acciones siguientes','Elige según tu contexto, el tiempo disponible y tu energía. Luego, confía en tu intuición.') + filters + body;
+  },
+  calendar(){
+    const l = inList('calendar').sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+    if (!l.length) return head('Calendario','Solo lo que debe ocurrir en un día u hora concretos. Nada de «me gustaría hacerlo el martes».') +
+      empty('calendar','Sin compromisos con fecha','Al aclarar un elemento, elige «Diferirlo» y luego «Calendario» para fijarle día y hora.',
+        count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar algo</button>`);
+    const dates = [...new Set(l.map(i => i.date))];
+    return head('Calendario','El terreno firme de tu día: citas y acciones con fecha u hora concretas.') +
+      dates.map(d => `<section class="group"><h3>${esc(dateLabel(d))}${dayDiff(d) < 0 ? ' <span class="badge err">Atrasado</span>' : ''}</h3>${rows(l.filter(i => i.date === d),{noDate:true})}</section>`).join('');
+  },
+  waiting(){
+    const l = inList('waiting').sort((a,b) => a.movedAt - b.movedAt);
+    if (!l.length) return head('En espera','Lo que delegaste o esperas de otra persona, con quién y desde cuándo.') +
+      empty('clock','No esperas nada de nadie','Al aclarar un elemento, elige «Delegarlo» y quedará aquí para darle seguimiento.',
+        count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar algo</button>`);
+    return head('En espera','Lo que otra persona tiene que hacer. Marca cada una cuando la recibas; las más antiguas van primero.') + rows(l);
+  },
+  projects(){
+    const act = activeProjects(), done = state.projects.filter(p => p.status === 'done');
+    const card = p => { const o = projOpen(p.id); return `<li class="row"><div class="row-main"><span class="row-text"><b>${esc(p.name)}</b></span><div class="meta">${
+      p.status === 'done' ? '<span class="badge">Terminado</span>' : o.length ? `<span class="badge">${plural(o.length,'acción abierta','acciones abiertas')}</span>` : `<span class="badge warn">${ic('warn').replace('class="ic"','class="ic" style="width:14px;height:14px"')}Sin siguiente acción</span>`}</div></div>
+      <div class="row-acts"><button class="btn ghost" data-a="open-project" data-id="${p.id}" aria-label="Abrir proyecto ${esc(p.name)}">Abrir${ic('right')}</button></div></li>`; };
+    const add = `<button class="btn primary" data-a="new-project">${ic('plus')}Nuevo proyecto</button>`;
+    if (!state.projects.length) return head('Proyectos','Cualquier resultado que necesite más de un paso.') +
+      empty('folder','Todavía no hay proyectos','Si algo requiere más de una acción para darse por terminado, es un proyecto. Créalo aquí o al aclarar un elemento.', add);
+    return head('Proyectos','Cada resultado que requiere más de un paso. Todo proyecto activo debe tener al menos una siguiente acción.', add) +
+      (act.length ? `<section class="group"><h3>Activos <span class="count">${act.length}</span></h3><ul class="rows">${act.map(card).join('')}</ul></section>` : '') +
+      (done.length ? `<section class="group"><h3>Terminados <span class="count">${done.length}</span></h3><ul class="rows">${done.map(card).join('')}</ul></section>` : '');
+  },
+  project(){
+    const p = proj(ui.projectId);
+    if (!p) return empty('folder','Este proyecto ya no existe','Puede que lo hayas eliminado o deshecho su creación.',`<button class="btn primary" data-a="nav" data-view="projects">Ver proyectos</button>`);
+    const o = projOpen(p.id), done = state.items.filter(i => i.projectId === p.id && i.list === 'done');
+    const active = p.status === 'active';
+    return `<p><button class="btn ghost" data-a="nav" data-view="projects">${ic('left')}Proyectos</button></p>` +
+      head(esc(p.name), active ? 'Resultado deseado. Mantén siempre visible cuál es la siguiente acción.' : 'Proyecto terminado.',
+        `<div class="btn-row"><button class="btn" data-a="rename-project" data-id="${p.id}">${ic('edit')}Renombrar</button>${active ? `<button class="btn" data-a="finish-project" data-id="${p.id}">${ic('check')}Terminar proyecto</button>` : `<button class="btn" data-a="reopen-project" data-id="${p.id}">${ic('undo')}Reabrir</button>`}<button class="btn danger" data-a="delete-project" data-id="${p.id}">${ic('trash')}Eliminar</button></div>`) +
+      (active && !o.length ? `<div class="notice">${ic('warn')}<span>Este proyecto no tiene siguiente acción. Decide el próximo paso físico y visible para que avance.</span></div>` : '') +
+      (active ? `<form class="card group" data-f="project-action" data-id="${p.id}">
+        <div class="field"><label for="pa-text">Siguiente acción del proyecto</label><div class="with-mic"><input id="pa-text" type="text" maxlength="300" placeholder="Por ejemplo: llamar a la imprenta para pedir cotización">${micBtn('pa-text')}</div><p class="error" id="pa-err" hidden></p></div>
+        <div class="grid2"><div class="field"><label for="pa-ctx">Contexto</label><select id="pa-ctx">${ctxOpts('Cualquier lugar')}</select></div>
+        <div class="field"><label for="pa-min">Tiempo estimado</label><select id="pa-min">${minOpts('', 'Sin estimar')}</select></div></div>
+        <button class="btn primary" type="submit">${ic('plus')}Añadir acción</button></form>` : '') +
+      (o.length ? `<section class="group"><h3>Abiertas <span class="count">${o.length}</span></h3>${rows(o,{noProj:true, showList:true})}</section>` : '') +
+      `<section class="group"><h3><label for="p-notes" style="margin:0;font:inherit">Plan y notas del proyecto</label></h3><textarea id="p-notes" data-c="project-notes" data-id="${p.id}" maxlength="5000" placeholder="Propósito, cómo se verá cuando esté terminado, ideas sueltas, pasos posibles…">${esc(p.notes)}</textarea><p class="small muted" style="margin-top:4px">Se guarda al salir del campo.</p></section>` +
+      (done.length ? `<section class="group"><h3>Hechas <span class="count">${done.length}</span></h3>${rows(done,{noProj:true})}</section>` : '');
+  },
+  someday(){
+    const l = inList('someday');
+    if (!l.length) return head('Algún día / Tal vez','Ideas y deseos sin compromiso por ahora.') +
+      empty('bulb','Nada aparcado para más adelante','Cuando algo no requiera acción ahora, pero quizá sí en el futuro, envíalo aquí al aclararlo.',
+        count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar una idea</button>`);
+    return head('Algún día / Tal vez','Sin compromiso por ahora. «Activar» lo devuelve a la bandeja para decidir su siguiente acción.') + rows(l);
+  },
+  reference(){
+    const all = inList('reference');
+    if (!all.length) return head('Referencia','Información útil que no requiere acción, pero que querrás encontrar.') +
+      empty('book','Tu archivo de referencia está vacío','Datos, direcciones, notas: lo que no pide acción, pero conviene tener a mano. Llegan aquí al aclarar la bandeja.',
+        count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar algo</button>`);
+    const q = ui.refQuery.trim().toLowerCase();
+    const l = q ? all.filter(i => (i.text + ' ' + i.notes).toLowerCase().includes(q)) : all;
+    return head('Referencia','Información recuperable cuando la necesites. No requiere acción.') +
+      `<div class="field"><label for="ref-q">Buscar en referencia</label><input id="ref-q" type="search" data-i="ref-search" value="${esc(ui.refQuery)}" placeholder="Palabra o frase"></div>
+       <div id="ref-list">${refList(l, q)}</div>`;
+  },
+  review(){
+    const r = state.review, st = stalled().length, ov = overdue().length, w = inList('waiting');
+    const oldest = w.length ? Math.max(...w.map(i => daysSince(i.movedAt))) : 0;
+    const steps = [
+      ['inbox','Vacía la bandeja de entrada', count('inbox') ? plural(count('inbox'),'elemento por aclarar','elementos por aclarar') : 'Está en cero', 'inbox'],
+      ['next','Repasa las acciones siguientes y marca las hechas', plural(count('next'),'acción','acciones'), 'next'],
+      ['calendar','Mira el calendario: lo pasado y los próximos días', ov ? plural(ov,'atrasada','atrasadas') : plural(count('calendar'),'con fecha','con fecha'), 'calendar'],
+      ['waiting','Revisa En espera: ¿hace falta dar seguimiento?', w.length ? `${plural(w.length,'pendiente','pendientes')}, la más antigua ${oldest ? 'de hace ' + plural(oldest,'día','días') : 'de hoy'}` : 'Nada pendiente', 'waiting'],
+      ['projects','Comprueba que cada proyecto tenga una siguiente acción', st ? plural(st,'proyecto sin siguiente acción','proyectos sin siguiente acción') : `${plural(activeProjects().length,'proyecto activo','proyectos activos')}, todos con acción`, 'projects'],
+      ['someday','Lee Algún día / Tal vez: ¿activas o eliminas algo?', plural(count('someday'),'idea','ideas'), 'someday']
+    ];
+    const left = steps.filter(s => !r.checks[s[0]]).length;
+    return head('Revisión semanal','Una vez por semana, pon todo al día para volver a confiar en tu sistema.') +
+      `<div class="notice ${r.last && daysSince(r.last) < 7 ? 'info' : ''}">${ic(r.last && daysSince(r.last) < 7 ? 'done' : 'warn')}<span>${r.last ? `Última revisión completa: ${agoLabel(r.last)}.` : 'Todavía no has completado ninguna revisión.'}${r.last && daysSince(r.last) >= 7 ? ' Ya toca la siguiente.' : ''}</span></div>
+      <ul class="steps">${steps.map(([k,t,info,v]) => `<li><label><input type="checkbox" data-c="review-check" data-k="${k}" ${r.checks[k]?'checked':''}><span>${t}<small>${info}</small></span></label><button class="btn ghost" data-a="nav" data-view="${v}" aria-label="Ir a ${VIEWS[v][0]}">Ir${ic('right')}</button></li>`).join('')}</ul>
+      <button class="btn primary" data-a="finish-review" ${left ? 'disabled' : ''}>${ic('check')}${left ? `Faltan ${plural(left,'paso','pasos')} por marcar` : 'Terminar revisión'}</button>`;
+  },
+  done(){
+    const l = inList('done').sort((a,b) => b.doneAt - a.doneAt);
+    if (!l.length) return head('Hechas','Registro de lo que has completado.') + empty('done','Aún no has completado nada','Lo que marques como hecho aparecerá aquí, por si necesitas recuperarlo.',`<button class="btn primary" data-a="nav" data-view="next">Ver acciones siguientes</button>`);
+    return head('Hechas','Lo que has completado, de lo más reciente a lo más antiguo.',`<button class="btn danger" data-a="clear-done">${ic('trash')}Borrar el registro</button>`) + rows(l);
+  },
+  trash(){
+    const l = inList('trash');
+    if (!l.length) return head('Papelera','Lo que descartaste.') + empty('trash','La papelera está vacía','Lo que descartes se guarda aquí hasta que lo elimines para siempre.',`<button class="btn primary" data-a="nav" data-view="inbox">Ir a la bandeja</button>`);
+    return head('Papelera','Puedes restaurar lo que descartaste o eliminarlo definitivamente.',`<button class="btn danger" data-a="empty-trash">${ic('trash')}Vaciar papelera</button>`) + rows(l);
+  },
+  settings(){
+    const p = state.prefs;
+    const seg = (v,l) => `<label><input type="radio" name="theme" value="${v}" data-c="theme" ${p.theme===v?'checked':''}><span>${l}</span></label>`;
+    return head('Ajustes y privacidad','Apariencia, dictado por voz y control de tus datos.') + `<div class="stack">
+      <section class="card"><h2>Apariencia</h2><p class="muted small" style="margin:4px 0 12px">«Automático» sigue el modo de tu dispositivo.</p>
+        <div class="seg" role="radiogroup" aria-label="Tema">${seg('auto','Automático')}${seg('light','Claro')}${seg('dark','Oscuro')}</div></section>
+      <section class="card"><h2>Dictado por voz</h2>
+        ${SR ? `<p class="muted small" style="margin:4px 0 12px">El reconocimiento de voz lo realiza tu navegador. En Chrome y Edge el audio se envía a los servidores del fabricante del navegador (fuera de Ecuador) para transcribirlo; esta página no lo guarda ni lo envía a ningún otro sitio.</p>
+        <div class="field"><label for="lang">Variante de español</label><select id="lang" data-c="lang">${options([['es-EC','Español (Ecuador)'],['es-MX','Español (México)'],['es-US','Español (Estados Unidos)'],['es-ES','Español (España)']], p.lang)}</select></div>
+        <label class="check"><input type="checkbox" data-c="auto-add" ${p.autoAdd?'checked':''}><span>En la barra de captura, guardar cada frase dictada como un elemento separado</span></label>`
+        : `<div class="notice" style="margin:12px 0 0">${ic('warn')}<span>Este navegador no ofrece reconocimiento de voz. Ábrelo en Chrome o Edge para dictar; mientras tanto puedes escribir.</span></div>`}</section>
+      <section class="card"><h2>Instalar en este dispositivo</h2>${
+        standalone() ? `<div class="notice info" style="margin:12px 0 0">${ic('done')}<span>Flujo ya está instalada y la estás usando como app. También funciona sin conexión (el dictado sí necesita internet).</span></div>`
+        : installEvt ? `<p class="muted small" style="margin:4px 0 12px">Se añade a tu pantalla de inicio y se abre a pantalla completa, sin barra del navegador. No pasa por ninguna tienda.</p><button class="btn primary" data-a="install">${ic('plus')}Instalar Flujo</button>`
+        : !window.isSecureContext ? `<div class="notice" style="margin:12px 0 0">${ic('warn')}<span>Para instalarla, ábrela desde su dirección web segura (https). Un archivo suelto o una dirección http no se pueden instalar.</span></div>`
+        : IOS ? `<p class="muted small" style="margin-top:4px">En iPhone o iPad, ábrela en Safari, toca el botón Compartir y elige «Añadir a pantalla de inicio».</p>`
+        : `<p class="muted small" style="margin-top:4px">Abre el menú del navegador (los tres puntos) y elige «Instalar aplicación» o «Añadir a pantalla de inicio». Si no aparece, puede que ya esté instalada.</p>`}</section>
+      <section class="card"><h2>Tus datos</h2><p class="muted small" style="margin:4px 0 12px">Todo se guarda únicamente en este navegador (almacenamiento local). No hay cuenta ni servidor: si borras los datos del navegador, se pierden. Exporta una copia de vez en cuando.</p>
+        <div class="btn-row"><button class="btn" data-a="export">Exportar copia (.json)</button>
+        <label class="btn" for="imp" style="margin:0">Importar copia</label><input class="sr" id="imp" type="file" accept="application/json,.json" data-c="import">
+        <button class="btn danger" data-a="wipe">${ic('trash')}Borrar todo</button></div></section>
+      <section class="card"><h2>Sobre el método</h2><p class="muted small" style="margin-top:4px">Flujo aplica las cinco fases del método de David Allen descrito en «Organízate con eficacia»: capturar, aclarar, organizar, revisar y hacer. Es una herramienta personal independiente, sin relación con el autor ni con la editorial.</p></section></div>`;
+  },
+  clarify(){
+    const w = ui.wiz;
+    if (!w) return head('Aclarar','') + empty('done','Bandeja en cero','Cada cosa está en su sitio. Ya puedes elegir qué hacer con la cabeza despejada.',
+      `<button class="btn primary" data-a="nav" data-view="next">Ver acciones siguientes</button><button class="btn" data-a="nav" data-view="inbox">Volver a la bandeja</button>`);
+    const it = byId(w.id), d = w.data, left = count('inbox');
+    const choice = (attrs, icon, title, sub) => `<button type="button" class="choice" ${attrs}>${ic(icon)}<span><b>${title}</b><span>${sub}</span></span></button>`;
+    let body = '';
+    if (w.step === 'what') body = `<form data-f="wiz-what">
+      <div class="field"><label for="w-text">¿Qué es?</label><div class="with-mic"><input id="w-text" type="text" maxlength="300" value="${esc(d.text)}">${micBtn('w-text')}</div><p class="hint">Puedes corregir el texto antes de decidir.</p><p class="error" id="w-err" hidden></p></div>
+      <p class="q">¿Requiere acción?</p><div class="choices">
+      <button class="choice" type="submit" value="yes">${ic('check')}<span><b>Sí</b><span>Hay algo que hacer al respecto</span></span></button>
+      <button class="choice" type="submit" value="no">${ic('x')}<span><b>No</b><span>Es basura, una idea para más adelante o información</span></span></button></div></form>`;
+    else if (w.step === 'no') body = `<p class="q">No requiere acción. ¿Qué es entonces?</p><div class="choices">
+      ${choice('data-a="wiz-finish" data-dest="trash"','trash','Basura','No sirve; a la papelera')}
+      ${choice('data-a="wiz-finish" data-dest="someday"','bulb','Algún día / Tal vez','Quizá más adelante; guardar para revisar')}
+      ${choice('data-a="wiz-finish" data-dest="reference"','book','Referencia','Información recuperable cuando haga falta')}</div>`;
+    else if (w.step === 'next') body = `<form data-f="wiz-next">
+      <div class="field"><label for="w-action">¿Cuál es la siguiente acción?</label><div class="with-mic"><input id="w-action" type="text" maxlength="300" value="${esc(d.action ?? d.text)}">${micBtn('w-action')}</div>
+      <p class="hint">La próxima actividad física y visible. Empieza con un verbo: llamar, escribir, comprar, preguntar a…</p><p class="error" id="w-err" hidden></p></div>
+      <div class="field"><label for="w-proj">¿Hace falta más de un paso para terminar?</label><select id="w-proj" data-c="wiz-proj">${projOpts(d.projSel, 'No, con esta acción queda resuelto', [['new','Sí: crear un proyecto nuevo']])}</select>
+      <p class="hint">Si necesita varios pasos es un proyecto. También puedes sumarla a un proyecto que ya exista.</p></div>
+      ${d.projSel === 'new' ? `<div class="field"><label for="w-pname">Nombre del proyecto (el resultado que quieres lograr)</label><div class="with-mic"><input id="w-pname" type="text" maxlength="300" value="${esc(d.projName ?? d.text)}">${micBtn('w-pname')}</div><p class="error" id="w-perr" hidden></p></div>` : ''}
+      <button class="btn primary" type="submit">Continuar${ic('right')}</button></form>`;
+    else if (w.step === 'twomin') body = `<p class="q">¿Te llevará menos de dos minutos?</p><div class="choices">
+      ${choice('data-a="wiz-step" data-step="doit"','check','Sí','Hazla ahora mismo: organizarla cuesta más que hacerla')}
+      ${choice('data-a="wiz-step" data-step="who"','clock','No','Habrá que delegarla o diferirla')}</div>`;
+    else if (w.step === 'doit') body = `<p class="q">Hazla ahora</p><p class="muted">«${esc(d.action)}»</p>
+      <p class="timer" id="w-timer" role="timer" aria-label="Tiempo restante">2:00</p><p class="small muted" id="w-timer-msg">El contador es solo una guía.</p>
+      <div class="btn-row" style="margin-top:16px"><button class="btn primary" data-a="wiz-finish" data-dest="done">${ic('check')}Hecho</button><button class="btn" data-a="wiz-step" data-step="who">No la terminé</button></div>`;
+    else if (w.step === 'who') body = `<p class="q">¿Eres la persona adecuada para hacerla?</p><div class="choices">
+      ${choice('data-a="wiz-step" data-step="delegate"','user','Delegarla','Otra persona debe encargarse; quedará en En espera')}
+      ${choice('data-a="wiz-step" data-step="defer"','right','Diferirla','La haré yo más adelante')}</div>`;
+    else if (w.step === 'delegate') body = `<form data-f="wiz-delegate">
+      <div class="field"><label for="w-who">¿A quién se la delegas?</label><div class="with-mic"><input id="w-who" type="text" maxlength="120" autocomplete="off" value="${esc(d.who || '')}">${micBtn('w-who')}</div><p class="hint">Se anotará la fecha de hoy para que puedas dar seguimiento.</p><p class="error" id="w-err" hidden></p></div>
+      <button class="btn primary" type="submit">Enviar a En espera${ic('right')}</button></form>`;
+    else if (w.step === 'defer') body = `<p class="q">¿Cuándo hay que hacerla?</p><div class="choices">
+      ${choice('data-a="wiz-step" data-step="cal"','calendar','En un momento concreto','Tiene día u hora fijos: va al Calendario')}
+      ${choice('data-a="wiz-step" data-step="ctx"','list','Tan pronto como sea posible','Va a la lista de Acciones siguientes')}</div>`;
+    else if (w.step === 'cal') body = `<form data-f="wiz-cal"><div class="grid2">
+      <div class="field"><label for="w-date">Día</label><input id="w-date" type="date" value="${esc(d.date || '')}"><p class="error" id="w-err" hidden></p></div>
+      <div class="field"><label for="w-time">Hora (opcional)</label><input id="w-time" type="time" value="${esc(d.time || '')}"></div></div>
+      <button class="btn primary" type="submit">Enviar al Calendario${ic('right')}</button></form>`;
+    else if (w.step === 'ctx') body = `<form data-f="wiz-ctx">
+      <fieldset class="field" style="border:0;padding:0;margin-left:0;margin-right:0"><legend class="label" style="padding:0">¿Dónde o con qué podrás hacerla?</legend><div class="chips">${CONTEXTS.map(c => `<label class="chip" style="margin:0"><input type="radio" name="ctx" value="${esc(c)}" ${(d.ctx || 'Cualquier lugar')===c?'checked':''}><span>${esc(c)}</span></label>`).join('')}</div></fieldset>
+      <div class="grid2"><div class="field"><label for="w-min">Tiempo estimado</label><select id="w-min">${minOpts(d.min || '', 'Sin estimar')}</select></div>
+      <div class="field"><label for="w-en">Energía que requiere</label><select id="w-en">${enOpts(d.energy || '', 'Sin indicar')}</select></div></div>
+      <button class="btn primary" type="submit">Enviar a Acciones siguientes${ic('right')}</button></form>`;
+    return head('Aclarar', `Decide qué es cada cosa, de una en una y sin devolver nada a la bandeja. ${left === 1 ? 'Queda 1 elemento.' : `Quedan ${left} elementos.`}`) +
+      `<div class="clarify"><section class="card" aria-live="polite"><h3>De tu bandeja</h3><p class="stuff">${esc(it.text)}</p>${body}
+        <div class="wiz-foot">${w.hist.length ? `<button class="btn ghost" data-a="wiz-back">${ic('left')}Atrás</button>` : '<span></span>'}<button class="btn ghost" data-a="nav" data-view="inbox">Salir</button></div></section>
+        <aside class="card diagram" aria-label="Diagrama del flujo de trabajo"><h3 style="margin-bottom:12px">Dónde estás en el flujo</h3>${diagram(w)}</aside></div>`;
+  }
+};
+function refList(l, q){
+  return l.length ? rows(l) : empty('book','Sin resultados',`Nada en tu referencia contiene «${esc(q)}».`,`<button class="btn primary" data-a="clear-ref">Borrar búsqueda</button>`);
+}
+
+/* ================= Diagrama del flujo ================= */
+const DG = {
+  nodes:{ inbox:[175,8,150,32,'Bandeja de entrada',2], que:[195,60,110,30,'¿Qué es?',2], accion:[170,110,160,32,'¿Requiere acción?',2],
+    basura:[405,66,145,32,'Basura',14], algun:[405,110,145,32,'Algún día / Tal vez',14], ref:[405,154,145,32,'Referencia',14],
+    sig:[150,196,200,36,'¿Cuál es la siguiente acción?',2], proy:[5,176,130,30,'Proyectos',14], planes:[5,226,130,30,'Planes del proyecto',14],
+    dos:[160,262,180,32,'¿Menos de dos minutos?',2], hacer:[30,340,110,32,'Hacerlo',2], deleg:[200,340,110,32,'Delegarlo',2], difer:[370,340,110,32,'Diferirlo',2],
+    espera:[20,430,130,34,'En espera',14], cal:[215,430,130,34,'Calendario',14], acc:[385,430,165,34,'Acciones siguientes',14] },
+  edges:['M250 40V58','M250 90V108','M330 126H403','M380 126V82H403','M380 126V170H403','M250 142V194','M150 208L137 198','M70 206V224','M135 238L148 226','M250 232V260',
+    'M200 294V316H85V338','M300 294V316','M300 316H255V338','M300 316H425V338','M235 372L112 428','M425 372V402H280V428','M425 402H467V428'],
+  labels:[[362,120,'No'],[268,174,'Sí'],[140,310,'Sí'],[322,310,'No']],
+  steps:{what:['inbox','que','accion'], no:['basura','algun','ref'], next:['sig'], twomin:['dos'], doit:['hacer'], who:['deleg','difer'], delegate:['deleg','espera'], defer:['difer','cal','acc'], cal:['cal'], ctx:['acc']}
+};
+function diagram(w){
+  const on = new Set(DG.steps[w.step] || []), past = new Set(w.hist.flatMap(s => s === 'what' ? DG.steps.what : s === 'next' ? ['sig'] : s === 'twomin' ? ['dos'] : s === 'who' && w.step !== 'doit' ? [] : []));
+  if (w.hist.length) DG.steps.what.forEach(n => past.add(n));
+  if (w.data.projSel && w.hist.includes('next')) { past.add('proy'); past.add('planes'); }
+  if (w.hist.includes('delegate') || w.step === 'delegate') past.add('deleg');
+  if (['cal','ctx'].includes(w.step)) past.add('difer');
+  const tip = e => { const m = e.match(/([\d.]+)[ ,]?([\d.]+)?$/), segs = e.match(/[MLHV][^MLHV]*/g); let x=0,y=0,px=0,py=0;
+    for (const s of segs){ px=x; py=y; const n = s.slice(1).trim().split(/[ ,]+/).map(Number); if (s[0]==='H') x=n[0]; else if (s[0]==='V') y=n[0]; else { x=n[0]; y=n[1]; } }
+    const a = Math.atan2(y-py, x-px) * 180/Math.PI; return `<path class="dg-arrow" d="M0 0L-7 -3.5V3.5z" transform="translate(${x} ${y}) rotate(${a})"/>`; };
+  return `<svg viewBox="0 0 556 472" role="img" aria-label="Diagrama: bandeja de entrada, ¿qué es?, ¿requiere acción? Si no: basura, algún día o referencia. Si sí: siguiente acción; si lleva menos de dos minutos, hacerlo; si no, delegarlo (en espera) o diferirlo (calendario o acciones siguientes).">
+    ${DG.edges.map(e => `<path class="dg-edge" d="${e}"/>${/^M(300 294|380 126V82|380 126V170)/.test(e) && e === 'M300 294V316' ? '' : tip(e)}`).join('')}
+    ${DG.labels.map(([x,y,t]) => `<text class="dg-lab" x="${x}" y="${y}">${t}</text>`).join('')}
+    ${Object.entries(DG.nodes).map(([k,[x,y,wd,h,t,r]]) => `<rect class="dg-node ${on.has(k)?'on':past.has(k)?'past':''}" x="${x}" y="${y}" width="${wd}" height="${h}" rx="${r}"/><text class="dg-text" x="${x+wd/2}" y="${y+h/2}">${t}</text>`).join('')}
+  </svg>`;
+}
+
+/* ================= Render ================= */
+function render(){
+  if (ui.view === 'clarify'){ const w = ui.wiz, it = w && byId(w.id); if (!it || it.list !== 'inbox') ui.wiz = newWiz(); }
+  if (timer && !(ui.view === 'clarify' && ui.wiz && ui.wiz.step === 'doit')){ clearInterval(timer); timer = null; }
+  const m = $('#main');
+  m.className = ui.view === 'clarify' ? 'wide' : '';
+  m.innerHTML = views[ui.view]();
+  renderNav();
+  document.title = `${ui.view === 'project' ? (proj(ui.projectId)?.name || 'Proyecto') : ui.view === 'clarify' ? 'Aclarar' : VIEWS[ui.view][0]} — Flujo`;
+  if (dict && !document.contains(dict.input)) stopDictation();
+  if (ui.view === 'clarify' && ui.wiz && ui.wiz.step === 'doit' && !timer) startTimer();
+}
+function applyTheme(){ const t = state.prefs.theme; if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; }
+
+/* ================= Avisos y diálogos ================= */
+function toast(msg, o={}){
+  const box = $('#toasts'); box.replaceChildren();
+  const t = document.createElement('div'); t.className = 'toast' + (o.error ? ' err' : '');
+  t.innerHTML = `<span>${esc(msg)}</span>${o.undo ? `<button data-a="undo">Deshacer</button>` : ''}<button data-a="toast-close" aria-label="Cerrar aviso" style="border:0">${ic('x')}</button>`;
+  box.append(t); setTimeout(() => t.remove(), o.error ? 9000 : 7000);
+}
+const dlg = $('#dlg');
+function openDialog(title, body, foot, form){
+  dlg.innerHTML = `<form ${form ? `data-f="${form}"` : ''} method="dialog" novalidate><div class="dlg-head"><h2 id="dlg-t">${title}</h2><button type="button" class="icon-btn" data-a="dlg-close" aria-label="Cerrar">${ic('x')}</button></div><div class="dlg-body">${body}</div><div class="dlg-foot">${foot}</div></form>`;
+  dlg.setAttribute('aria-labelledby','dlg-t');
+  if (!dlg.open) dlg.showModal();
+}
+function confirmDlg(title, text, okLabel, onOk, danger=true){
+  dlg._ok = onOk;
+  openDialog(title, `<p>${text}</p>`, `<button type="button" class="btn" data-a="dlg-close">Cancelar</button><button type="button" class="btn ${danger?'danger':'primary'}" data-a="dlg-ok">${okLabel}</button>`);
+}
+const fail = (id, msg) => { const e = $('#'+id); if (!e) return; e.textContent = msg; e.hidden = !msg; };
+
+/* ================= Dictado por voz ================= */
+let dict = null;
+function setMic(btn, on, msg){ btn.setAttribute('aria-pressed', on); btn.classList.toggle('rec', on); btn.setAttribute('aria-label', on ? 'Detener el dictado' : 'Dictar con la voz'); $('#micStatus').textContent = msg || ''; }
+function stopDictation(){ if (!dict) return; const d = dict; dict = null; try { d.rec.stop(); } catch (_) {} setMic(d.btn, false); }
+function toggleDictation(input, btn){
+  if (!SR) return toast('Este navegador no ofrece reconocimiento de voz. Usa Chrome o Edge, o escribe el texto.', {error:true});
+  if (dict){ const same = dict.input === input; stopDictation(); if (same) return; }
+  const auto = input.id === 'cap' && state.prefs.autoAdd;
+  /* En Android el modo continuo repite palabras: se dicta frase a frase y se reanuda solo tras cada una. */
+  const rec = new SR(); rec.lang = state.prefs.lang; rec.interimResults = true; rec.continuous = !ANDROID;
+  const base = auto ? '' : input.value.trim(); let fin = '', got = false, failed = false;
+  rec.onresult = e => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript.trim();
+      if (!e.results[i].isFinal) { interim += ' ' + t; continue; }
+      got = true;
+      if (auto) { if (t) addInbox(t, true); }
+      else fin += ' ' + t;
+    }
+    input.value = [base, fin.trim(), interim.trim()].filter(Boolean).join(' ').slice(0, +input.maxLength > 0 ? input.maxLength : 300);
+  };
+  rec.onerror = e => {
+    const msgs = {'not-allowed':'El micrófono está bloqueado. Permite su uso en el candado de la barra de direcciones y vuelve a intentarlo.',
+      'service-not-allowed':'El navegador no permite el reconocimiento de voz en esta página.',
+      'audio-capture':'No se encontró ningún micrófono. Conecta uno y vuelve a intentarlo.',
+      'network':'El dictado necesita conexión a internet y ahora no hay. Puedes escribir el texto.',
+      'no-speech':'No se oyó nada. Toca el micrófono y habla cerca del dispositivo.'};
+    failed = true;
+    if (e.error === 'no-speech' && (fin || got)) return;
+    if (e.error !== 'aborted') toast(msgs[e.error] || 'El dictado se interrumpió. Vuelve a tocar el micrófono para continuar.', {error:true});
+  };
+  rec.onend = () => { if (dict && dict.rec === rec){
+    if (ANDROID && got && !failed){ got = false; try { rec.start(); return; } catch (_) {} }
+    dict = null; setMic(btn, false); if (document.contains(input)) input.focus(); } };
+  try { rec.start(); } catch (err) { return toast('No se pudo iniciar el dictado. Inténtalo de nuevo.', {error:true}); }
+  dict = {rec, input, btn};
+  setMic(btn, true, auto ? 'Escuchando… cada frase se guarda sola en la bandeja. Toca el micrófono para terminar.' : 'Escuchando… habla ahora. Toca el micrófono para terminar.');
+}
+
+/* ================= Operaciones ================= */
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+function newItem(text, extra){ return Object.assign({id:uid(), text:cap1(text.trim()).slice(0,300), notes:'', list:'inbox', prevList:'', context:'', minutes:0, energy:'', projectId:'', date:'', time:'', who:'', createdAt:Date.now(), movedAt:Date.now(), doneAt:0}, extra); }
+function addInbox(text, quiet){
+  text = text.trim(); if (!text) return false;
+  commit(() => state.items.push(newItem(text)), quiet ? '' : 'Capturado en la bandeja de entrada');
+  if (quiet) $('#micStatus').textContent = `Guardado: «${cap1(text)}». Sigue hablando o toca el micrófono para terminar.`;
+  return true;
+}
+function checkOrphan(pid){
+  const p = proj(pid); if (!p || p.status !== 'active' || projOpen(pid).length) return;
+  openDialog('¿Cuál es la siguiente acción?', `<p style="margin-bottom:16px">El proyecto <b>${esc(p.name)}</b> se quedó sin siguiente acción.</p>
+    <div class="field"><label for="o-text">Siguiente acción</label><div class="with-mic"><input id="o-text" type="text" maxlength="300">${micBtn('o-text')}</div><p class="error" id="o-err" hidden></p></div>
+    <div class="field"><label for="o-ctx">Contexto</label><select id="o-ctx">${ctxOpts('Cualquier lugar')}</select></div><input type="hidden" id="o-pid" value="${pid}">`,
+    `<button type="button" class="btn ghost left" data-a="dlg-close">Decidir después</button><button type="button" class="btn" data-a="finish-project" data-id="${pid}">El proyecto está terminado</button><button type="submit" class="btn primary">Añadir acción</button>`, 'orphan');
+  setTimeout(() => $('#o-text')?.focus(), 0);
+}
+function newWiz(){ const it = inList('inbox')[0]; return it ? {id:it.id, step:'what', hist:[], data:{text:it.text}} : null; }
+function wizGo(step){ const w = ui.wiz; w.hist.push(w.step); w.step = step; render(); focusWiz(); }
+function focusWiz(){ const el = $('#main .card input[type=text], #main .card input[type=date], #main .card .choice, #main .card .btn.primary'); el?.focus(); }
+function wizFinish(dest){
+  const w = ui.wiz, d = w.data, labels = {trash:'la papelera', someday:'Algún día / Tal vez', reference:'Referencia', done:'Hechas', waiting:'En espera', calendar:'Calendario', next:'Acciones siguientes'};
+  let pid = '';
+  commit(() => {
+    const it = byId(w.id), actionable = ['next','calendar','waiting','done'].includes(dest);
+    if (actionable){
+      if (d.projSel === 'new'){ const p = {id:uid(), name:cap1(d.projName), notes:'', status:'active', createdAt:Date.now()}; state.projects.push(p); pid = p.id; }
+      else if (d.projSel && proj(d.projSel)) pid = d.projSel;
+      if (d.action !== d.text && !pid) it.notes = `Capturado como: «${d.text}»` + (it.notes ? '\n' + it.notes : '');
+      it.text = cap1(d.action);
+    } else it.text = cap1(d.text);
+    Object.assign(it, {list:dest, prevList:'inbox', movedAt:Date.now(), projectId:pid, doneAt:dest === 'done' ? Date.now() : 0,
+      who:dest === 'waiting' ? d.who : '', date:dest === 'calendar' ? d.date : '', time:dest === 'calendar' ? d.time : '',
+      context:dest === 'next' ? d.ctx : '', minutes:dest === 'next' ? +d.min || 0 : 0, energy:dest === 'next' ? d.energy : ''});
+    ui.wiz = newWiz();
+  }, `Enviado a ${labels[dest]}`);
+  focusWiz();
+  if (dest === 'done' && pid) checkOrphan(pid);
+}
+function startTimer(){
+  const end = Date.now() + 120000;
+  const tick = () => { const el = $('#w-timer'); if (!el) return; const s = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    el.textContent = `${Math.floor(s/60)}:${pad(s%60)}`;
+    if (s === 0){ el.classList.add('over'); $('#w-timer-msg').textContent = 'Pasaron los dos minutos. Si no terminaste, elige «No la terminé» para delegarla o diferirla.'; clearInterval(timer); } };
+  timer = setInterval(tick, 250); tick();
+}
+function editDialog(d){
+  dlg._edit = d;
+  const lists = [['inbox','Bandeja de entrada'],['next','Acciones siguientes'],['calendar','Calendario'],['waiting','En espera'],['someday','Algún día / Tal vez'],['reference','Referencia']];
+  openDialog('Editar', `
+    <div class="field"><label for="e-text">Texto</label><div class="with-mic"><input id="e-text" type="text" maxlength="300" value="${esc(d.text)}">${micBtn('e-text')}</div><p class="error" id="e-err" hidden></p></div>
+    <div class="field"><label for="e-list">Lista</label><select id="e-list" data-c="edit-list">${options(lists, d.list)}</select></div>
+    ${d.list === 'next' ? `<div class="field"><label for="e-ctx">Contexto</label><select id="e-ctx">${ctxOpts(d.context, 'Sin contexto')}</select></div>
+      <div class="grid2"><div class="field"><label for="e-min">Tiempo estimado</label><select id="e-min">${minOpts(d.minutes || '', 'Sin estimar')}</select></div>
+      <div class="field"><label for="e-en">Energía</label><select id="e-en">${enOpts(d.energy, 'Sin indicar')}</select></div></div>` : ''}
+    ${d.list === 'calendar' ? `<div class="grid2"><div class="field"><label for="e-date">Día</label><input id="e-date" type="date" value="${esc(d.date)}"><p class="error" id="e-derr" hidden></p></div>
+      <div class="field"><label for="e-time">Hora (opcional)</label><input id="e-time" type="time" value="${esc(d.time)}"></div></div>` : ''}
+    ${d.list === 'waiting' ? `<div class="field"><label for="e-who">¿De quién lo esperas?</label><input id="e-who" type="text" maxlength="120" autocomplete="off" value="${esc(d.who)}"><p class="error" id="e-werr" hidden></p></div>` : ''}
+    ${OPEN.includes(d.list) ? `<div class="field"><label for="e-proj">Proyecto</label><select id="e-proj">${projOpts(d.projectId, 'Ninguno')}</select></div>` : ''}
+    <div class="field"><label for="e-notes">Notas</label><textarea id="e-notes" maxlength="5000">${esc(d.notes)}</textarea></div>`,
+    `<button type="button" class="btn" data-a="dlg-close">Cancelar</button><button type="submit" class="btn primary">Guardar cambios</button>`, 'edit');
+}
+function readEdit(){
+  const d = dlg._edit, v = id => $('#'+id)?.value;
+  d.text = v('e-text').trim(); d.notes = v('e-notes'); d.list = v('e-list');
+  if ($('#e-ctx')){ d.context = v('e-ctx'); d.minutes = +v('e-min') || 0; d.energy = v('e-en'); }
+  if ($('#e-date')){ d.date = v('e-date'); d.time = v('e-time'); }
+  if ($('#e-who')) d.who = v('e-who').trim();
+  if ($('#e-proj')) d.projectId = v('e-proj');
+  return d;
+}
+function projectDialog(p){
+  openDialog(p ? 'Renombrar proyecto' : 'Nuevo proyecto', `<div class="field"><label for="pn">Nombre del proyecto (el resultado que quieres lograr)</label><div class="with-mic"><input id="pn" type="text" maxlength="300" value="${esc(p ? p.name : '')}" placeholder="Por ejemplo: mudanza a la oficina nueva terminada">${micBtn('pn')}</div><p class="error" id="pn-err" hidden></p></div><input type="hidden" id="pn-id" value="${p ? p.id : ''}">`,
+    `<button type="button" class="btn" data-a="dlg-close">Cancelar</button><button type="submit" class="btn primary">${p ? 'Guardar nombre' : 'Crear proyecto'}</button>`, 'project');
+  setTimeout(() => $('#pn')?.focus(), 0);
+}
+function seed(){
+  const d = n => iso(new Date(Date.now() + n*864e5)), ago = n => Date.now() - n*864e5;
+  commit(() => {
+    const p1 = {id:uid(), name:'Cumpleaños de mamá organizado', notes:'Sábado por la tarde, unas doce personas.', status:'active', createdAt:ago(5)};
+    const p2 = {id:uid(), name:'Declaración de impuestos presentada', notes:'', status:'active', createdAt:ago(9)};
+    state.projects.push(p1, p2);
+    state.items.push(
+      newItem('Renovar la matrícula del carro', {createdAt:ago(1)}), newItem('Idea: curso de fotografía', {createdAt:ago(1)}), newItem('Pedir el informe de ventas a Carla'), newItem('Dirección del nuevo proveedor: Av. Amazonas y Colón'),
+      newItem('Llamar al restaurante para reservar mesa', {list:'next', context:'Llamadas', minutes:5, energy:'baja', projectId:p1.id}),
+      newItem('Redactar la propuesta para el cliente nuevo', {list:'next', context:'Ordenador', minutes:60, energy:'alta'}),
+      newItem('Comprar focos para la sala', {list:'next', context:'Recados', minutes:15, energy:'baja'}),
+      newItem('Cita con el dentista', {list:'calendar', date:d(2), time:'10:30'}),
+      newItem('Pagar la planilla de luz', {list:'calendar', date:d(-1)}),
+      newItem('Cotización de la imprenta', {list:'waiting', who:'Andrés', movedAt:ago(8)}),
+      newItem('Aprender a tocar guitarra', {list:'someday'}),
+      newItem('Clave del wifi de la oficina: está en el router', {list:'reference'}));
+  }, 'Ejemplo cargado: un proyecto quedó sin siguiente acción a propósito');
+}
+
+/* ================= Acciones (clics) ================= */
+const actions = {
+  nav: b => { if (dlg.open) dlg.close(); go(b.dataset.view); },
+  more(){ openDialog('Más secciones', `<ul class="nav">${['waiting','someday','reference','review','done','trash','settings'].map(v => `<li><button type="button" data-a="nav" data-view="${v}" ${ui.view===v?'aria-current="page"':''}>${ic(VIEWS[v][1])}<span class="lbl">${VIEWS[v][0]}</span>${navCount(v)}</button></li>`).join('')}</ul>`, `<button type="button" class="btn" data-a="dlg-close">Cerrar</button>`); },
+  'dlg-close'(){ dlg.close(); },
+  'dlg-ok'(){ const f = dlg._ok; dlg.close(); f && f(); },
+  'toast-close': b => b.closest('.toast').remove(),
+  undo(b){ if (!undoSnap) return; try { state = normalize(JSON.parse(undoSnap)); } catch (_) { return; } undoSnap = null; save(); applyTheme(); render(); b.closest('.toast').remove(); toast('Cambio deshecho'); },
+  mic(b){ const input = $('#' + b.dataset.target); if (input) toggleDictation(input, b); },
+  'mic-capture'(){ toggleDictation($('#cap'), $('#capMic')); },
+  'focus-capture'(){ $('#cap').focus(); },
+  seed,
+  complete(b){ const it = byId(b.dataset.id); if (!it) return; const pid = it.projectId, wasWaiting = it.list === 'waiting';
+    commit(() => { it.prevList = it.list; it.list = 'done'; it.doneAt = Date.now(); }, wasWaiting ? 'Marcada como recibida' : 'Marcada como hecha');
+    if (pid) checkOrphan(pid); },
+  trash(b){ const it = byId(b.dataset.id); if (it) commit(() => { it.prevList = it.list; it.list = 'trash'; it.movedAt = Date.now(); }, 'Movido a la papelera'); },
+  restore(b){ const it = byId(b.dataset.id); if (!it) return; const to = it.prevList && !['trash','done'].includes(it.prevList) ? it.prevList : 'inbox';
+    commit(() => { it.list = to; it.prevList = ''; it.doneAt = 0; if (to === 'calendar' && !it.date) it.list = 'inbox'; }, `Restaurado en ${VIEWS[to][0]}`); },
+  purge(b){ const it = byId(b.dataset.id); if (it) confirmDlg('Eliminar para siempre', `Se eliminará «${esc(it.text)}» y no podrás recuperarlo desde la papelera.`, 'Eliminar', () => commit(() => { state.items = state.items.filter(i => i !== it); }, 'Eliminado definitivamente')); },
+  'empty-trash'(){ const n = count('trash'); confirmDlg('Vaciar la papelera', `Se eliminarán ${plural(n,'elemento','elementos')} de forma definitiva.`, 'Vaciar papelera', () => commit(() => { state.items = state.items.filter(i => i.list !== 'trash'); }, 'Papelera vaciada')); },
+  'clear-done'(){ const n = count('done'); confirmDlg('Borrar el registro de hechas', `Se eliminarán ${plural(n,'acción completada','acciones completadas')} de forma definitiva.`, 'Borrar registro', () => commit(() => { state.items = state.items.filter(i => i.list !== 'done'); }, 'Registro borrado')); },
+  activate(b){ const it = byId(b.dataset.id); if (it) commit(() => { it.list = 'inbox'; it.movedAt = Date.now(); }, 'Devuelto a la bandeja para aclararlo'); },
+  edit(b){ const it = byId(b.dataset.id); if (it) { editDialog({...it}); setTimeout(() => $('#e-text')?.focus(), 0); } },
+  'clear-filters'(){ ui.filters = {ctx:'', min:'', energy:''}; render(); },
+  'clear-ref'(){ ui.refQuery = ''; render(); $('#ref-q')?.focus(); },
+  'open-project': b => go('project', {projectId:b.dataset.id}),
+  'new-project': () => projectDialog(null),
+  'rename-project': b => projectDialog(proj(b.dataset.id)),
+  'finish-project'(b){ const p = proj(b.dataset.id); if (!p) return; const o = projOpen(p.id);
+    const run = () => commit(() => { p.status = 'done'; o.forEach(i => { i.prevList = i.list; i.list = 'done'; i.doneAt = Date.now(); }); }, 'Proyecto terminado');
+    if (dlg.open) dlg.close();
+    o.length ? confirmDlg('Terminar proyecto', `«${esc(p.name)}» todavía tiene ${plural(o.length,'acción abierta, que se marcará como hecha','acciones abiertas, que se marcarán como hechas')}.`, 'Terminar proyecto', run, false) : run(); },
+  'reopen-project'(b){ const p = proj(b.dataset.id); if (p) { commit(() => { p.status = 'active'; }, 'Proyecto reabierto'); checkOrphan(p.id); } },
+  'delete-project'(b){ const p = proj(b.dataset.id); if (!p) return; const n = state.items.filter(i => i.projectId === p.id).length;
+    confirmDlg('Eliminar proyecto', `Se eliminará «${esc(p.name)}» con su plan y notas.${n ? ` Sus ${plural(n,'acción','acciones')} se conservan en sus listas, ya sin proyecto.` : ''}`, 'Eliminar proyecto', () => {
+      commit(() => { state.projects = state.projects.filter(x => x !== p); state.items.forEach(i => { if (i.projectId === p.id) i.projectId = ''; }); ui.view = 'projects'; }, 'Proyecto eliminado'); }); },
+  'finish-review'(){ commit(() => { state.review = {checks:{}, last:Date.now()}; }, 'Revisión semanal completada'); },
+  async install(){ if (!installEvt) return render(); const ev = installEvt; installEvt = null; ev.prompt(); try { await ev.userChoice; } catch (_) {} render(); },
+  'wiz-step': b => wizGo(b.dataset.step),
+  'wiz-back'(){ const w = ui.wiz; w.step = w.hist.pop(); render(); focusWiz(); },
+  'wiz-finish': b => wizFinish(b.dataset.dest),
+  export(){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], {type:'application/json'})); a.download = `flujo-respaldo-${today()}.json`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Copia exportada a tu carpeta de descargas'); },
+  wipe(){ confirmDlg('Borrar todo', `Se eliminarán ${plural(state.items.length,'elemento','elementos')} y ${plural(state.projects.length,'proyecto','proyectos')} de este navegador. Podrás deshacerlo solo mientras el aviso siga visible.`, 'Borrar todo', () => commit(() => { const prefs = state.prefs; state = blank(); state.prefs = prefs; }, 'Todos los datos fueron borrados')); }
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && actions[b.dataset.a]) actions[b.dataset.a](b, e); });
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+dlg.addEventListener('close', () => { if (dict && dlg.contains(dict.input)) stopDictation(); dlg.innerHTML = ''; });
+
+/* ================= Formularios ================= */
+const forms = {
+  capture(){ const i = $('#cap'); if (dict && dict.input === i) stopDictation(); if (addInbox(i.value)) i.value = ''; else { toast('Escribe o dicta algo antes de capturar.', {error:true}); } i.focus(); },
+  'wiz-what'(f, sub){ const t = $('#w-text').value.trim(); if (!t) return fail('w-err','Describe el elemento con al menos una palabra.'); ui.wiz.data.text = t; wizGo(sub && sub.value === 'no' ? 'no' : 'next'); },
+  'wiz-next'(){ const d = ui.wiz.data; d.action = $('#w-action').value.trim(); d.projSel = $('#w-proj').value; if ($('#w-pname')) d.projName = $('#w-pname').value.trim();
+    fail('w-err',''); fail('w-perr','');
+    if (!d.action) return fail('w-err','Escribe la siguiente acción física, por ejemplo «Llamar a Juan para pedir el presupuesto».');
+    if (d.projSel === 'new' && !d.projName) return fail('w-perr','Ponle nombre al proyecto: el resultado que quieres lograr.');
+    wizGo('twomin'); },
+  'wiz-delegate'(){ const who = $('#w-who').value.trim(); if (!who) return fail('w-err','Indica el nombre de la persona que se encargará.'); ui.wiz.data.who = who; wizFinish('waiting'); },
+  'wiz-cal'(){ const date = $('#w-date').value; if (!date) return fail('w-err','Elige el día en que debe hacerse.'); Object.assign(ui.wiz.data, {date, time:$('#w-time').value}); wizFinish('calendar'); },
+  'wiz-ctx'(f){ Object.assign(ui.wiz.data, {ctx:f.elements.ctx.value, min:$('#w-min').value, energy:$('#w-en').value}); wizFinish('next'); },
+  edit(){ const d = readEdit(); fail('e-err',''); fail('e-derr',''); fail('e-werr','');
+    if (!d.text) return fail('e-err','El texto no puede quedar vacío.');
+    if (d.list === 'calendar' && !d.date) return fail('e-derr','El calendario necesita un día concreto.');
+    if (d.list === 'waiting' && !d.who) return fail('e-werr','Indica de quién esperas esto.');
+    const it = byId(d.id); if (!it) return dlg.close();
+    const moved = it.list !== d.list;
+    dlg.close();
+    commit(() => { Object.assign(it, {text:cap1(d.text), notes:d.notes, list:d.list, context:d.list==='next'?d.context:'', minutes:d.list==='next'?d.minutes:0, energy:d.list==='next'?d.energy:'',
+      date:d.list==='calendar'?d.date:'', time:d.list==='calendar'?d.time:'', who:d.list==='waiting'?d.who:'', projectId:OPEN.includes(d.list)?d.projectId:''}); if (moved) it.movedAt = Date.now(); },
+      moved ? `Movido a ${VIEWS[d.list][0]}` : 'Cambios guardados'); },
+  project(){ const name = $('#pn').value.trim(), id = $('#pn-id').value; if (!name) return fail('pn-err','Escribe el nombre del proyecto.');
+    dlg.close();
+    if (id) commit(() => { proj(id).name = cap1(name); }, 'Proyecto renombrado');
+    else { const p = {id:uid(), name:cap1(name), notes:'', status:'active', createdAt:Date.now()}; commit(() => { state.projects.push(p); ui.view = 'project'; ui.projectId = p.id; }, 'Proyecto creado'); $('#pa-text')?.focus(); } },
+  'project-action'(f){ const t = $('#pa-text').value.trim(); if (!t) return fail('pa-err','Escribe la acción antes de añadirla.');
+    const ctx = $('#pa-ctx').value, min = +$('#pa-min').value || 0;
+    commit(() => state.items.push(newItem(t, {list:'next', context:ctx, minutes:min, projectId:f.dataset.id})), 'Acción añadida al proyecto'); $('#pa-text')?.focus(); },
+  orphan(){ const t = $('#o-text').value.trim(); if (!t) return fail('o-err','Escribe la siguiente acción o elige otra opción.');
+    const pid = $('#o-pid').value, ctx = $('#o-ctx').value; dlg.close();
+    commit(() => state.items.push(newItem(t, {list:'next', context:ctx, projectId:pid})), 'Siguiente acción añadida'); }
+};
+document.addEventListener('submit', e => { const f = e.target.closest('[data-f]'); e.preventDefault(); if (f && forms[f.dataset.f]) forms[f.dataset.f](f, e.submitter); });
+
+/* ================= Cambios en campos ================= */
+const changes = {
+  filter(el){ ui.filters[el.dataset.k] = el.value; render(); $('#' + el.id)?.focus(); },
+  'review-check'(el){ state.review.checks[el.dataset.k] = el.checked; save(); render(); $(`[data-c="review-check"][data-k="${el.dataset.k}"]`)?.focus(); },
+  theme(el){ state.prefs.theme = el.value; save(); applyTheme(); },
+  lang(el){ state.prefs.lang = el.value; save(); toast('Idioma de dictado actualizado'); },
+  'auto-add'(el){ state.prefs.autoAdd = el.checked; save(); toast(el.checked ? 'Cada frase dictada se guardará por separado' : 'El dictado rellenará el campo para que lo revises'); },
+  'wiz-proj'(el){ const d = ui.wiz.data; d.action = $('#w-action').value; d.projSel = el.value; render(); $(el.value === 'new' ? '#w-pname' : '#w-proj')?.focus(); },
+  'edit-list'(){ editDialog(readEdit()); $('#e-list')?.focus(); },
+  'project-notes'(el){ const p = proj(el.dataset.id); if (p && p.notes !== el.value){ p.notes = el.value; save(); toast('Notas del proyecto guardadas'); } },
+  import(el){ const file = el.files[0]; el.value = ''; if (!file) return;
+    if (file.size > 5e6) return toast('El archivo supera los 5 MB; no parece una copia de Flujo.', {error:true});
+    file.text().then(txt => { let d; try { d = normalize(JSON.parse(txt)); } catch (_) { return toast('Ese archivo no es una copia válida de Flujo. Elige un .json exportado desde esta misma pantalla.', {error:true}); }
+      confirmDlg('Importar copia', `La copia contiene ${plural(d.items.length,'elemento','elementos')} y ${plural(d.projects.length,'proyecto','proyectos')}. Reemplazará lo que hay ahora en este navegador (${plural(state.items.length,'elemento','elementos')}).`, 'Reemplazar con la copia', () => { commit(() => { state = d; }, 'Copia importada'); applyTheme(); }, false); })
+      .catch(() => toast('No se pudo leer el archivo. Inténtalo de nuevo.', {error:true})); }
+};
+document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && changes[el.dataset.c]) changes[el.dataset.c](el); });
+document.addEventListener('input', e => { if (e.target.dataset.i === 'ref-search'){ ui.refQuery = e.target.value; const q = ui.refQuery.trim().toLowerCase(); $('#ref-list').innerHTML = refList(inList('reference').filter(i => !q || (i.text + ' ' + i.notes).toLowerCase().includes(q)), q); } });
+
+/* ================= Arranque ================= */
+if (!SR){ const b = $('#capMic'); b.disabled = true; b.title = 'Este navegador no ofrece reconocimiento de voz. Usa Chrome o Edge.'; $('#cap').placeholder = '¿Qué tienes en la cabeza? Escríbelo aquí'; }
+applyTheme(); render();
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (ui.view === 'settings') render(); });
+window.addEventListener('appinstalled', () => { installEvt = null; if (ui.view === 'settings') render(); toast('Flujo quedó instalada en este dispositivo'); });
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+if (loadFailed) toast('Los datos guardados estaban dañados y no se pudieron abrir. Se conservó una copia interna y la app empezó vacía.', {error:true});
+</script>
+</body>
+</html>
