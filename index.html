@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="description" content="Organiza tus actividades: captura, aclara, organiza, revisa y haz.">
 <meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141815" media="(prefers-color-scheme: dark)">
@@ -334,7 +336,7 @@ let state = (() => {
   catch (e) { loadFailed = true; try { if (raw) localStorage.setItem(KEY+'-dañado', raw); } catch (_) {} return blank(); }
 })();
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  try { localStorage.setItem(KEY, JSON.stringify(state)); scheduleSync(); }
   catch (e) { toast('No se pudo guardar en este navegador. Exporta una copia desde Ajustes para no perder cambios.', {error:true}); }
 }
 let undoSnap = null;
@@ -391,7 +393,8 @@ function badges(it, o={}){
   const b = [];
   if (it.list === 'calendar' && it.date && !o.noDate) b.push(`<span class="badge ${dayDiff(it.date)<0?'err':''}">${dayDiff(it.date)<0?'Atrasada · ':''}${esc(dateLabel(it.date))}</span>`);
   if (it.list === 'calendar' && it.time) b.push(`<span class="badge">${esc(it.time)}</span>`);
-  if (it.list === 'calendar' && it.calAt) b.push(`<span class="badge accent">Enviada a tu calendario</span>`);
+  if (it.list === 'calendar' && msOn()) { if (ms.links[it.id]) b.push(`<span class="badge accent">En Outlook</span>`); }
+  else if (it.list === 'calendar' && it.calAt) b.push(`<span class="badge accent">Enviada a tu calendario</span>`);
   if (it.list === 'waiting') b.push(`<span class="badge accent">${esc(it.who || 'Alguien')}</span><span class="badge ${daysSince(it.movedAt)>=7?'warn':''}">Delegado ${agoLabel(it.movedAt)}</span>`);
   if (it.list === 'next' && it.context && !o.noCtx) b.push(`<span class="badge">${esc(it.context)}</span>`);
   if (it.list === 'next' && it.minutes) b.push(`<span class="badge">${it.minutes >= 60 ? it.minutes/60 + ' h' : it.minutes + ' min'}</span>`);
@@ -408,7 +411,7 @@ function row(it, o={}){
   if (it.list === 'someday') acts.push(`<button class="btn ghost" data-a="activate" data-id="${it.id}">Activar</button>`);
   if (it.list === 'trash' || it.list === 'done') acts.push(`<button class="btn ghost" data-a="restore" data-id="${it.id}">${ic('undo')}Restaurar</button>`);
   if (it.list === 'trash') acts.push(iconBtn('purge','x','Eliminar para siempre'));
-  if (it.list === 'calendar') acts.push(iconBtn('to-cal','send', it.calAt ? 'Volver a enviar a mi calendario' : 'Enviar a mi calendario de Outlook'));
+  if (it.list === 'calendar' && !msOn()) acts.push(iconBtn('to-cal','send', it.calAt ? 'Volver a enviar a mi calendario' : 'Enviar a mi calendario de Outlook'));
   if (!['trash','done'].includes(it.list)) { acts.push(iconBtn('edit','edit','Editar')); acts.push(iconBtn('trash','trash','Mover a la papelera')); }
   const tick = OPEN.includes(it.list) ? `<button class="tick" data-a="complete" data-id="${it.id}" aria-label="Marcar como ${it.list==='waiting'?'recibida':'hecha'}: ${esc(it.text)}" title="Marcar como ${it.list==='waiting'?'recibida':'hecha'}">${ic('check')}</button>` : '';
   return `<li class="row">${tick}<div class="row-main"><span class="row-text">${esc(it.text)}</span>${badges(it,o)}${it.notes ? `<p class="row-note">${esc(it.notes)}</p>` : ''}</div><div class="row-acts">${acts.join('')}</div></li>`;
@@ -456,7 +459,7 @@ const views = {
       empty('calendar','Sin compromisos con fecha','Al aclarar un elemento, elige «Diferirlo» y luego «Calendario» para fijarle día y hora.',
         count('inbox') ? `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar la bandeja</button>` : `<button class="btn primary" data-a="focus-capture">Capturar algo</button>`);
     const dates = [...new Set(l.map(i => i.date))];
-    return head('Calendario','El terreno firme de tu día: citas y acciones con fecha u hora concretas.') +
+    return head('Calendario','El terreno firme de tu día: citas y acciones con fecha u hora concretas.') + msLine() +
       dates.map(d => `<section class="group"><h3>${esc(dateLabel(d))}${dayDiff(d) < 0 ? ' <span class="badge err">Atrasado</span>' : ''}</h3>${rows(l.filter(i => i.date === d),{noDate:true})}</section>`).join('');
   },
   waiting(){
@@ -552,6 +555,7 @@ const views = {
         <div class="field"><label for="lang">Variante de español</label><select id="lang" data-c="lang">${options([['es-EC','Español (Ecuador)'],['es-MX','Español (México)'],['es-US','Español (Estados Unidos)'],['es-ES','Español (España)']], p.lang)}</select></div>
         <label class="check"><input type="checkbox" data-c="auto-add" ${p.autoAdd?'checked':''}><span>En la barra de captura, guardar cada frase dictada como un elemento separado</span></label>`
         : `<div class="notice" style="margin:12px 0 0">${ic('warn')}<span>Este navegador no ofrece reconocimiento de voz. Ábrelo en Chrome o Edge para dictar; mientras tanto puedes escribir.</span></div>`}</section>
+      ${msSection()}
       <section class="card"><h2>Instalar en este dispositivo</h2>${
         standalone() ? `<div class="notice info" style="margin:12px 0 0">${ic('done')}<span>Flujo ya está instalada y la estás usando como app. También funciona sin conexión (el dictado sí necesita internet).</span></div>`
         : installEvt ? `<p class="muted small" style="margin:4px 0 12px">Se añade a tu pantalla de inicio y se abre a pantalla completa, sin barra del navegador. No pasa por ninguna tienda.</p><button class="btn primary" data-a="install">${ic('plus')}Instalar Flujo</button>`
@@ -757,7 +761,7 @@ function wizFinish(dest){
       who:dest === 'waiting' ? d.who : '', date:dest === 'calendar' ? d.date : '', time:dest === 'calendar' ? d.time : '',
       context:dest === 'next' ? d.ctx : '', minutes:dest === 'next' ? +d.min || 0 : 0, energy:dest === 'next' ? d.energy : ''});
     ui.wiz = newWiz();
-  }, `Enviado a ${labels[dest]}`, dest === 'calendar' ? {a:'to-cal', id:w.id, label:'Enviar a Outlook'} : null);
+  }, `Enviado a ${labels[dest]}`, dest === 'calendar' && !msOn() ? {a:'to-cal', id:w.id, label:'Enviar a Outlook'} : null);
   focusWiz();
   if (dest === 'done' && pid) checkOrphan(pid);
 }
@@ -849,6 +853,144 @@ function calDialog(it){
     `<button type="button" class="btn" data-a="dlg-close">Cerrar</button>`);
 }
 
+/* ================= Sincronización con Outlook (Microsoft Graph) =================
+   Flujo -> Outlook, en un solo sentido. Sin servidor: inicio de sesión OAuth 2.0 con PKCE.
+   El permiso (tokens) se guarda aparte de los datos y nunca entra en las copias exportadas. */
+const MS_KEY = 'flujo-ms-v1';
+const MS_AUTH = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
+const MS_SCOPE = 'Calendars.ReadWrite offline_access';
+const GRAPH = 'https://graph.microsoft.com/v1.0';
+const msBlank = () => ({clientId:'', access:'', exp:0, refresh:'', owner:'', links:{}, status:'off', lastSync:0, error:'', silentAt:0});
+let ms = (() => { try { const d = JSON.parse(localStorage.getItem(MS_KEY)); if (d && typeof d === 'object' && d.links && typeof d.links === 'object') return Object.assign(msBlank(), d); } catch (_) {} return msBlank(); })();
+let msBusy = false, msAgain = false, msTimer = null, msBoot = false;
+function saveMs(){ try { localStorage.setItem(MS_KEY, JSON.stringify(ms)); } catch (_) {} }
+const msOn = () => ms.status !== 'off' && !!ms.clientId;
+const redirectUri = () => location.origin + location.pathname.replace(/index\.html$/, '');
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const rnd = n => b64u(crypto.getRandomValues(new Uint8Array(n)));
+function authErr(code){ const e = new Error(code); e.code = code; return e; }
+
+async function msLogin(silent){
+  const verifier = rnd(48), st = rnd(16);
+  const challenge = b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  localStorage.setItem(MS_KEY + '-pkce', JSON.stringify({verifier, st, silent:!!silent, at:Date.now()}));
+  location.assign(MS_AUTH + '/authorize?' + new URLSearchParams({client_id:ms.clientId, response_type:'code', redirect_uri:redirectUri(), response_mode:'fragment',
+    scope:MS_SCOPE, state:st, code_challenge:challenge, code_challenge_method:'S256', prompt:silent ? 'none' : 'select_account'}));
+}
+async function msToken(params){
+  const r = await fetch(MS_AUTH + '/token', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams(Object.assign({client_id:ms.clientId, scope:MS_SCOPE}, params))});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.access_token) throw authErr(d.error || 'token_error');
+  ms.access = d.access_token; ms.exp = Date.now() + ((+d.expires_in || 3600) - 60) * 1000; if (d.refresh_token) ms.refresh = d.refresh_token; saveMs();
+}
+async function msAccess(){
+  if (ms.access && Date.now() < ms.exp) return ms.access;
+  if (!ms.refresh) throw authErr('invalid_grant');
+  await msToken({grant_type:'refresh_token', refresh_token:ms.refresh});
+  return ms.access;
+}
+async function graph(method, path, body, retried){
+  const tok = await msAccess();
+  const r = await fetch(GRAPH + path, {method, headers:Object.assign({Authorization:'Bearer ' + tok}, body ? {'Content-Type':'application/json'} : {}), body:body ? JSON.stringify(body) : undefined});
+  if (r.status === 401){ ms.access = ''; ms.exp = 0; if (retried) throw authErr('invalid_grant'); return graph(method, path, body, true); }
+  if (r.status === 204) return null;
+  const d = await r.json().catch(() => null);
+  if (!r.ok){ const e = new Error('graph'); e.status = r.status; throw e; }
+  return d;
+}
+/* Vuelta desde Microsoft: el código llega en el fragmento (#), que no viaja a ningún servidor. */
+async function msReturn(){
+  if (!/(^|[#&])state=/.test(location.hash)) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  let p = null; try { p = JSON.parse(localStorage.getItem(MS_KEY + '-pkce')); } catch (_) {}
+  localStorage.removeItem(MS_KEY + '-pkce');
+  history.replaceState(null, '', location.pathname + location.search);
+  if (!p || h.get('state') !== p.st || Date.now() - p.at > 6e5)
+    return toast('No se completó la conexión con Microsoft: la respuesta no corresponde a una solicitud reciente de esta app. Inténtalo de nuevo desde Ajustes.', {error:true});
+  if (h.get('error') || !h.get('code')){
+    if (p.silent){ ms.status = 'expired'; saveMs(); render(); return; }
+    return toast(h.get('error') === 'access_denied' ? 'Cancelaste la conexión con Microsoft. No se cambió nada.' : 'Microsoft rechazó la conexión. Revisa que el Id. de aplicación sea correcto y que la dirección de redirección registrada sea exactamente ' + redirectUri(), {error:true});
+  }
+  try {
+    await msToken({grant_type:'authorization_code', code:h.get('code'), redirect_uri:redirectUri(), code_verifier:p.verifier});
+    ms.status = 'ok'; ms.error = ''; saveMs();
+    try { const c = await graph('GET', '/me/calendar?$select=owner'); ms.owner = String((c && c.owner && c.owner.address) || '').slice(0, 120); saveMs(); } catch (_) {}
+    if (!p.silent){ toast('Conectado con tu calendario de Outlook'); go('settings'); } else render();
+  } catch (e) {
+    toast('Microsoft no entregó el permiso. Comprueba en tu registro que la plataforma sea «Aplicación de página única» y que admita cuentas personales; luego inténtalo de nuevo.', {error:true});
+  }
+}
+const evSig = it => [it.text, it.date, it.time, evBody(it)].join('\u0001');
+function graphEvent(it){
+  const t = evTimes(it), tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const b = {subject:it.text, body:{contentType:'text', content:evBody(it)}, isAllDay:t.allDay};
+  if (t.allDay){ b.start = {dateTime:t.start + 'T00:00:00', timeZone:tz}; b.end = {dateTime:t.end + 'T00:00:00', timeZone:tz}; }
+  else { b.start = {dateTime:t.s.toISOString().slice(0,19), timeZone:'UTC'}; b.end = {dateTime:t.e.toISOString().slice(0,19), timeZone:'UTC'}; }
+  return b;
+}
+function scheduleSync(){ if (ms.status === 'off' || ms.status === 'expired') return; clearTimeout(msTimer); msTimer = setTimeout(syncNow, 1500); }
+function syncUI(){ if (['calendar','settings'].includes(ui.view) && !dlg.open) render(); }
+/* Crea, actualiza y elimina en Outlook solo los eventos que Flujo creó (los que están en ms.links). */
+async function syncNow(manual){
+  if (ms.status === 'off') return;
+  if (msBusy){ msAgain = true; return; }
+  if (!navigator.onLine){ if (manual === true) toast('Sin conexión a internet. Los cambios se enviarán a Outlook cuando vuelvas a tener conexión.', {error:true}); return; }
+  msBusy = true; syncUI();
+  let failed = 0;
+  try {
+    const want = new Map(state.items.filter(i => i.list === 'calendar' && i.date).map(i => [i.id, i]));
+    for (const [id, it] of want){
+      const l = ms.links[id], sig = evSig(it);
+      if (l && l.sig === sig){ if (l.done){ l.done = false; saveMs(); } continue; }
+      try {
+        let ev = null;
+        if (l){ try { ev = await graph('PATCH', '/me/events/' + encodeURIComponent(l.eid), graphEvent(it)); } catch (e) { if (e.code || e.status !== 404) throw e; } }
+        if (!ev) ev = await graph('POST', '/me/events', graphEvent(it));
+        ms.links[id] = {eid:ev.id, sig, done:false}; saveMs();
+      } catch (e) { if (e.code) throw e; failed++; }
+    }
+    for (const id of Object.keys(ms.links)){
+      if (want.has(id)) continue;
+      const it = byId(id), l = ms.links[id];
+      if (it && it.list === 'done'){ if (!l.done){ l.done = true; saveMs(); } continue; }   // lo hecho se conserva en Outlook
+      if (!it && l.done){ delete ms.links[id]; saveMs(); continue; }
+      try { await graph('DELETE', '/me/events/' + encodeURIComponent(l.eid)); } catch (e) { if (e.code) throw e; if (e.status !== 404){ failed++; continue; } }
+      delete ms.links[id]; saveMs();
+    }
+    ms.status = 'ok'; ms.error = failed ? 'parcial' : ''; if (!failed) ms.lastSync = Date.now();
+  } catch (e) {
+    if (['invalid_grant','interaction_required','login_required','consent_required'].includes(e.code)){
+      ms.status = 'expired'; ms.access = ''; ms.refresh = ''; ms.exp = 0;
+      if (msBoot && Date.now() - ms.silentAt > 6 * 3600e3){ ms.silentAt = Date.now(); saveMs(); msBusy = false; return msLogin(true).catch(() => {}); }
+    } else ms.error = 'parcial';
+  }
+  saveMs(); msBusy = false; msBoot = false; syncUI();
+  if (manual === true) toast(ms.status === 'expired' ? 'El permiso de Microsoft caducó. Vuelve a conectar para seguir sincronizando.' : ms.error ? 'Algunos cambios no llegaron a Outlook. Se reintentará con el siguiente cambio.' : 'Calendario sincronizado con Outlook', {error:ms.status === 'expired' || !!ms.error});
+  if (msAgain){ msAgain = false; scheduleSync(); }
+}
+function syncWhen(){ const d = new Date(ms.lastSync), h = d.toLocaleTimeString('es-EC', {hour:'2-digit', minute:'2-digit'}); return iso(d) === today() ? `hoy a las ${h}` : `${agoLabel(ms.lastSync)}, ${h}`; }
+function msLine(){
+  if (!msOn()) return '';
+  if (ms.status === 'expired') return `<div class="notice">${ic('warn')}<span>El permiso de Microsoft caducó y los cambios no se están enviando a Outlook.<br><button class="btn" data-a="ms-reconnect" style="margin-top:8px">Volver a conectar</button></span></div>`;
+  return `<p class="small muted" style="margin:-12px 0 16px">${msBusy ? 'Sincronizando con Outlook…' : ms.error ? 'Algunos cambios no llegaron a Outlook; se reintentará con el siguiente cambio o desde Ajustes.' : ms.lastSync ? `Sincronizado con Outlook · ${syncWhen()}` : 'Conectado con Outlook'}</p>`;
+}
+function msSection(){
+  const open = `<section class="card"><h2>Calendario de Outlook / Hotmail</h2>`;
+  if (!window.isSecureContext || !window.crypto || !crypto.subtle) return open + `<div class="notice" style="margin:12px 0 0">${ic('warn')}<span>La conexión con Microsoft solo funciona si abres Flujo desde su dirección web segura (https).</span></div></section>`;
+  const privacy = `<p class="muted small" style="margin:4px 0 12px">Se envían a Microsoft (servidores fuera de Ecuador) el texto, la fecha, la hora, las notas y el nombre del proyecto de las acciones del Calendario; nada más. El permiso se guarda solo en este dispositivo, no entra en las copias exportadas y lo retiras aquí cuando quieras.</p>`;
+  if (!msOn()) return open + `<p style="margin-top:4px">Las acciones del Calendario se crean, actualizan y eliminan solas en tu calendario de Outlook.</p>${privacy}
+    <form data-f="ms-connect"><div class="field"><label for="ms-id">Id. de aplicación (cliente) de tu registro en Microsoft</label>
+    <input id="ms-id" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="36" placeholder="00000000-0000-0000-0000-000000000000" value="${esc(ms.clientId)}">
+    <p class="hint">32 letras y números en cinco grupos separados por guiones. En el registro, la dirección de redirección debe ser exactamente <b>${esc(redirectUri())}</b></p><p class="error" id="ms-err" hidden></p></div>
+    <button class="btn primary" type="submit">Conectar con Microsoft</button></form></section>`;
+  const n = Object.keys(ms.links).length, bye = `<button class="btn danger" data-a="ms-disconnect">Desconectar</button>`;
+  if (ms.status === 'expired') return open + `<div class="notice" style="margin:12px 0">${ic('warn')}<span>El permiso de Microsoft caducó (en apps sin servidor dura 24 horas). Mientras tanto los cambios no se envían a Outlook; al reconectar se ponen al día.</span></div>
+    <div class="btn-row"><button class="btn primary" data-a="ms-reconnect">Volver a conectar</button>${bye}</div></section>`;
+  return open + `<div class="notice info" style="margin:12px 0">${ic('done')}<span>Conectado${ms.owner ? ` como ${esc(ms.owner)}` : ''}. ${plural(n, 'evento enlazado', 'eventos enlazados')}. ${ms.lastSync ? `Última sincronización: ${syncWhen()}.` : 'Aún no se ha sincronizado.'}</span></div>
+    ${ms.error ? `<div class="notice">${ic('warn')}<span>Algunos cambios no llegaron a Outlook. Se reintentará con el siguiente cambio, o puedes sincronizar ahora.</span></div>` : ''}${privacy}
+    <div class="btn-row"><button class="btn" data-a="ms-sync" ${msBusy ? 'disabled' : ''}>${ic('refresh')}${msBusy ? 'Sincronizando…' : 'Sincronizar ahora'}</button>${bye}</div></section>`;
+}
+
 /* ================= Acciones (clics) ================= */
 const actions = {
   nav: b => { if (dlg.open) dlg.close(); go(b.dataset.view); },
@@ -875,6 +1017,10 @@ const actions = {
   'to-cal'(b){ const it = byId(b.dataset.id); if (!it || it.list !== 'calendar' || !it.date) return toast('Esa acción ya no está en el calendario.', {error:true}); b.closest('.toast')?.remove(); calDialog(it); },
   'cal-outlook'(b){ const it = byId(b.dataset.id); if (!it) return; window.open(outlookUrl(it), '_blank', 'noopener'); markSent(it); toast('Outlook se abrió en otra pestaña: revisa el evento y guárdalo allí'); },
   'cal-ics'(b){ const it = byId(b.dataset.id); if (!it) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([icsText(it)], {type:'text/calendar;charset=utf-8'})); a.download = 'flujo-evento.ics'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); markSent(it); toast('Archivo descargado: ábrelo y elige tu calendario para guardarlo'); },
+  'ms-sync'(){ syncNow(true); },
+  'ms-reconnect'(){ msLogin(false); },
+  'ms-disconnect'(){ confirmDlg('Desconectar Outlook', 'Flujo dejará de enviar cambios y borrará de este dispositivo el permiso de Microsoft. Los eventos que ya están en tu calendario de Outlook se quedan allí.', 'Desconectar', () => {
+    ms = Object.assign(msBlank(), {clientId:ms.clientId}); saveMs(); render(); toast('Outlook desconectado. Para retirar también el permiso en Microsoft, entra a account.microsoft.com, Privacidad, Aplicaciones y servicios.'); }); },
   'clear-filters'(){ ui.filters = {ctx:'', min:'', energy:''}; render(); },
   'clear-ref'(){ ui.refQuery = ''; render(); $('#ref-q')?.focus(); },
   'open-project': b => go('project', {projectId:b.dataset.id}),
@@ -894,7 +1040,7 @@ const actions = {
   'wiz-back'(){ const w = ui.wiz; w.step = w.hist.pop(); render(); focusWiz(); },
   'wiz-finish': b => wizFinish(b.dataset.dest),
   export(){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], {type:'application/json'})); a.download = `flujo-respaldo-${today()}.json`; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast('Copia exportada a tu carpeta de descargas'); },
-  wipe(){ confirmDlg('Borrar todo', `Se eliminarán ${plural(state.items.length,'elemento','elementos')} y ${plural(state.projects.length,'proyecto','proyectos')} de este navegador. Podrás deshacerlo solo mientras el aviso siga visible.`, 'Borrar todo', () => commit(() => { const prefs = state.prefs; state = blank(); state.prefs = prefs; }, 'Todos los datos fueron borrados')); }
+  wipe(){ confirmDlg('Borrar todo', `Se eliminarán ${plural(state.items.length,'elemento','elementos')} y ${plural(state.projects.length,'proyecto','proyectos')} de este navegador. Podrás deshacerlo solo mientras el aviso siga visible.${msOn() ? ' Los eventos que Flujo creó en Outlook también se eliminarán de allí.' : ''}`, 'Borrar todo', () => commit(() => { const prefs = state.prefs; state = blank(); state.prefs = prefs; }, 'Todos los datos fueron borrados')); }
 };
 document.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && actions[b.dataset.a]) actions[b.dataset.a](b, e); });
 dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
@@ -921,7 +1067,7 @@ const forms = {
     dlg.close();
     commit(() => { Object.assign(it, {text:cap1(d.text), notes:d.notes, list:d.list, context:d.list==='next'?d.context:'', minutes:d.list==='next'?d.minutes:0, energy:d.list==='next'?d.energy:'',
       date:d.list==='calendar'?d.date:'', time:d.list==='calendar'?d.time:'', who:d.list==='waiting'?d.who:'', projectId:OPEN.includes(d.list)?d.projectId:''}); if (moved) it.movedAt = Date.now(); },
-      moved ? `Movido a ${VIEWS[d.list][0]}` : 'Cambios guardados', d.list === 'calendar' ? {a:'to-cal', id:it.id, label:'Enviar a Outlook'} : null); },
+      moved ? `Movido a ${VIEWS[d.list][0]}` : 'Cambios guardados', d.list === 'calendar' && !msOn() ? {a:'to-cal', id:it.id, label:'Enviar a Outlook'} : null); },
   project(){ const name = $('#pn').value.trim(), id = $('#pn-id').value; if (!name) return fail('pn-err','Escribe el nombre del proyecto.');
     dlg.close();
     if (id) commit(() => { proj(id).name = cap1(name); }, 'Proyecto renombrado');
@@ -929,6 +1075,9 @@ const forms = {
   'project-action'(f){ const t = $('#pa-text').value.trim(); if (!t) return fail('pa-err','Escribe la acción antes de añadirla.');
     const ctx = $('#pa-ctx').value, min = +$('#pa-min').value || 0;
     commit(() => state.items.push(newItem(t, {list:'next', context:ctx, minutes:min, projectId:f.dataset.id})), 'Acción añadida al proyecto'); $('#pa-text')?.focus(); },
+  'ms-connect'(){ const id = $('#ms-id').value.trim().toLowerCase();
+    if (!/^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(id)) return fail('ms-err','El Id. de aplicación tiene 32 letras y números en cinco grupos separados por guiones, como 1a2b3c4d-1234-1234-1234-1a2b3c4d5e6f. Cópialo de la página «Información general» de tu registro.');
+    ms.clientId = id; saveMs(); msLogin(false).catch(() => toast('No se pudo iniciar la conexión con Microsoft. Inténtalo de nuevo.', {error:true})); },
   orphan(){ const t = $('#o-text').value.trim(); if (!t) return fail('o-err','Escribe la siguiente acción o elige otra opción.');
     const pid = $('#o-pid').value, ctx = $('#o-ctx').value; dlg.close();
     commit(() => state.items.push(newItem(t, {list:'next', context:ctx, projectId:pid})), 'Siguiente acción añadida'); }
@@ -948,7 +1097,7 @@ const changes = {
   import(el){ const file = el.files[0]; el.value = ''; if (!file) return;
     if (file.size > 5e6) return toast('El archivo supera los 5 MB; no parece una copia de Flujo.', {error:true});
     file.text().then(txt => { let d; try { d = normalize(JSON.parse(txt)); } catch (_) { return toast('Ese archivo no es una copia válida de Flujo. Elige un .json exportado desde esta misma pantalla.', {error:true}); }
-      confirmDlg('Importar copia', `La copia contiene ${plural(d.items.length,'elemento','elementos')} y ${plural(d.projects.length,'proyecto','proyectos')}. Reemplazará lo que hay ahora en este navegador (${plural(state.items.length,'elemento','elementos')}).`, 'Reemplazar con la copia', () => { commit(() => { state = d; }, 'Copia importada'); applyTheme(); }, false); })
+      confirmDlg('Importar copia', `La copia contiene ${plural(d.items.length,'elemento','elementos')} y ${plural(d.projects.length,'proyecto','proyectos')}. Reemplazará lo que hay ahora en este navegador (${plural(state.items.length,'elemento','elementos')}).${msOn() ? ' En Outlook se eliminarán los eventos de las acciones que no estén en la copia.' : ''}`, 'Reemplazar con la copia', () => { commit(() => { state = d; }, 'Copia importada'); applyTheme(); }, false); })
       .catch(() => toast('No se pudo leer el archivo. Inténtalo de nuevo.', {error:true})); }
 };
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && changes[el.dataset.c]) changes[el.dataset.c](el); });
@@ -961,6 +1110,8 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); instal
 window.addEventListener('appinstalled', () => { installEvt = null; if (ui.view === 'settings') render(); toast('Flujo quedó instalada en este dispositivo'); });
 if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+window.addEventListener('online', () => scheduleSync());
+msReturn().catch(() => {}).then(() => { if (msOn() && ms.status !== 'expired'){ msBoot = true; syncNow(); } });
 if (loadFailed) toast('Los datos guardados estaban dañados y no se pudieron abrir. Se conservó una copia interna y la app empezó vacía.', {error:true});
 </script>
 </body>
