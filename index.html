@@ -200,7 +200,7 @@ dialog::backdrop{background:var(--backdrop)}
 @media (min-width:900px){#toasts{bottom:var(--s5)}}
 .toast{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s2) var(--s2) var(--s4);border-radius:var(--r1);background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:var(--t-sm)}
 .toast.err{background:var(--err);color:var(--surface)}
-.toast span{flex:1}
+.toast{flex-wrap:wrap}.toast span{flex:1 1 60%}
 .toast button{min-height:var(--hit);padding:0 var(--s3);border:1px solid currentColor;border-radius:var(--r1);background:none;color:inherit;font-weight:600;cursor:pointer}
 .toast button:hover{opacity:.8}
 .seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r1);overflow:hidden}
@@ -239,6 +239,7 @@ dialog::backdrop{background:var(--backdrop)}
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
   <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"/></symbol>
   <symbol id="i-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5M12 13v4M10 15h4"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/></symbol>
 </svg>
 
@@ -316,7 +317,7 @@ function normalize(d){
     minutes:MINUTES.includes(+i.minutes) ? +i.minutes : 0, energy:ENERGY[i.energy] ? i.energy : '',
     projectId:pids.has(i.projectId) ? i.projectId : '', date:/^\d{4}-\d{2}-\d{2}$/.test(i.date) ? i.date : '',
     time:/^\d{2}:\d{2}$/.test(i.time) ? i.time : '', who:str(i.who,120),
-    createdAt:+i.createdAt || Date.now(), movedAt:+i.movedAt || 0, doneAt:+i.doneAt || 0}));
+    createdAt:+i.createdAt || Date.now(), movedAt:+i.movedAt || 0, doneAt:+i.doneAt || 0, calAt:+i.calAt || 0}));
   if (d.review && typeof d.review === 'object'){ b.review.last = +d.review.last || null; if (d.review.checks && typeof d.review.checks === 'object') for (const k of REVIEW_KEYS) b.review.checks[k] = !!d.review.checks[k]; }
   if (d.prefs && typeof d.prefs === 'object'){
     if (['auto','light','dark'].includes(d.prefs.theme)) b.prefs.theme = d.prefs.theme;
@@ -337,10 +338,10 @@ function save(){
   catch (e) { toast('No se pudo guardar en este navegador. Exporta una copia desde Ajustes para no perder cambios.', {error:true}); }
 }
 let undoSnap = null;
-function commit(fn, msg){
+function commit(fn, msg, action){
   undoSnap = JSON.stringify(state);
   fn(); save(); render();
-  if (msg) toast(msg, {undo:true});
+  if (msg) toast(msg, {undo:true, action});
 }
 const byId = id => state.items.find(i => i.id === id);
 const proj = id => state.projects.find(p => p.id === id);
@@ -390,6 +391,7 @@ function badges(it, o={}){
   const b = [];
   if (it.list === 'calendar' && it.date && !o.noDate) b.push(`<span class="badge ${dayDiff(it.date)<0?'err':''}">${dayDiff(it.date)<0?'Atrasada · ':''}${esc(dateLabel(it.date))}</span>`);
   if (it.list === 'calendar' && it.time) b.push(`<span class="badge">${esc(it.time)}</span>`);
+  if (it.list === 'calendar' && it.calAt) b.push(`<span class="badge accent">Enviada a tu calendario</span>`);
   if (it.list === 'waiting') b.push(`<span class="badge accent">${esc(it.who || 'Alguien')}</span><span class="badge ${daysSince(it.movedAt)>=7?'warn':''}">Delegado ${agoLabel(it.movedAt)}</span>`);
   if (it.list === 'next' && it.context && !o.noCtx) b.push(`<span class="badge">${esc(it.context)}</span>`);
   if (it.list === 'next' && it.minutes) b.push(`<span class="badge">${it.minutes >= 60 ? it.minutes/60 + ' h' : it.minutes + ' min'}</span>`);
@@ -406,6 +408,7 @@ function row(it, o={}){
   if (it.list === 'someday') acts.push(`<button class="btn ghost" data-a="activate" data-id="${it.id}">Activar</button>`);
   if (it.list === 'trash' || it.list === 'done') acts.push(`<button class="btn ghost" data-a="restore" data-id="${it.id}">${ic('undo')}Restaurar</button>`);
   if (it.list === 'trash') acts.push(iconBtn('purge','x','Eliminar para siempre'));
+  if (it.list === 'calendar') acts.push(iconBtn('to-cal','send', it.calAt ? 'Volver a enviar a mi calendario' : 'Enviar a mi calendario de Outlook'));
   if (!['trash','done'].includes(it.list)) { acts.push(iconBtn('edit','edit','Editar')); acts.push(iconBtn('trash','trash','Mover a la papelera')); }
   const tick = OPEN.includes(it.list) ? `<button class="tick" data-a="complete" data-id="${it.id}" aria-label="Marcar como ${it.list==='waiting'?'recibida':'hecha'}: ${esc(it.text)}" title="Marcar como ${it.list==='waiting'?'recibida':'hecha'}">${ic('check')}</button>` : '';
   return `<li class="row">${tick}<div class="row-main"><span class="row-text">${esc(it.text)}</span>${badges(it,o)}${it.notes ? `<p class="row-note">${esc(it.notes)}</p>` : ''}</div><div class="row-acts">${acts.join('')}</div></li>`;
@@ -664,7 +667,7 @@ function applyTheme(){ const t = state.prefs.theme; if (t === 'auto') delete doc
 function toast(msg, o={}){
   const box = $('#toasts'); box.replaceChildren();
   const t = document.createElement('div'); t.className = 'toast' + (o.error ? ' err' : '');
-  t.innerHTML = `<span>${esc(msg)}</span>${o.undo ? `<button data-a="undo">Deshacer</button>` : ''}<button data-a="toast-close" aria-label="Cerrar aviso" style="border:0">${ic('x')}</button>`;
+  t.innerHTML = `<span>${esc(msg)}</span>${o.action ? `<button data-a="${o.action.a}" data-id="${o.action.id}">${esc(o.action.label)}</button>` : ''}${o.undo ? `<button data-a="undo">Deshacer</button>` : ''}<button data-a="toast-close" aria-label="Cerrar aviso" style="border:0">${ic('x')}</button>`;
   box.append(t); setTimeout(() => t.remove(), o.error ? 9000 : 7000);
 }
 const dlg = $('#dlg');
@@ -721,7 +724,7 @@ function toggleDictation(input, btn){
 
 /* ================= Operaciones ================= */
 const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
-function newItem(text, extra){ return Object.assign({id:uid(), text:cap1(text.trim()).slice(0,300), notes:'', list:'inbox', prevList:'', context:'', minutes:0, energy:'', projectId:'', date:'', time:'', who:'', createdAt:Date.now(), movedAt:Date.now(), doneAt:0}, extra); }
+function newItem(text, extra){ return Object.assign({id:uid(), text:cap1(text.trim()).slice(0,300), notes:'', list:'inbox', prevList:'', context:'', minutes:0, energy:'', projectId:'', date:'', time:'', who:'', createdAt:Date.now(), movedAt:Date.now(), doneAt:0, calAt:0}, extra); }
 function addInbox(text, quiet){
   text = text.trim(); if (!text) return false;
   commit(() => state.items.push(newItem(text)), quiet ? '' : 'Capturado en la bandeja de entrada');
@@ -754,7 +757,7 @@ function wizFinish(dest){
       who:dest === 'waiting' ? d.who : '', date:dest === 'calendar' ? d.date : '', time:dest === 'calendar' ? d.time : '',
       context:dest === 'next' ? d.ctx : '', minutes:dest === 'next' ? +d.min || 0 : 0, energy:dest === 'next' ? d.energy : ''});
     ui.wiz = newWiz();
-  }, `Enviado a ${labels[dest]}`);
+  }, `Enviado a ${labels[dest]}`, dest === 'calendar' ? {a:'to-cal', id:w.id, label:'Enviar a Outlook'} : null);
   focusWiz();
   if (dest === 'done' && pid) checkOrphan(pid);
 }
@@ -814,6 +817,38 @@ function seed(){
   }, 'Ejemplo cargado: un proyecto quedó sin siguiente acción a propósito');
 }
 
+/* ================= Calendario externo (Outlook / Hotmail) ================= */
+const DEFAULT_MIN = 30;
+function evTimes(it){
+  if (!it.time){ const n = new Date(it.date + 'T12:00'); n.setDate(n.getDate() + 1); return {allDay:true, start:it.date, end:iso(n)}; }
+  const s = new Date(`${it.date}T${it.time}:00`); return {allDay:false, s, e:new Date(s.getTime() + DEFAULT_MIN * 60000)};
+}
+function localIso(d){ const o = -d.getTimezoneOffset(), a = Math.abs(o); return `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${o >= 0 ? '+' : '-'}${pad(Math.floor(a/60))}:${pad(a%60)}`; }
+function evBody(it){ const p = it.projectId && proj(it.projectId); return [p ? `Proyecto: ${p.name}` : '', it.notes].filter(Boolean).join('\n'); }
+function outlookUrl(it){
+  const t = evTimes(it), q = {path:'/calendar/action/compose', rru:'addevent', subject:it.text, body:evBody(it),
+    startdt:t.allDay ? t.start : localIso(t.s), enddt:t.allDay ? t.end : localIso(t.e), allday:String(t.allDay)};
+  return 'https://outlook.live.com/calendar/0/action/compose?' + Object.entries(q).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&');
+}
+function icsText(it){
+  const t = evTimes(it), x = s => String(s).replace(/\\/g,'\\\\').replace(/([;,])/g,'\\$1').replace(/\r?\n/g,'\\n');
+  const utc = d => d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''), day = s => s.replace(/-/g,'');
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Flujo//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    `UID:${it.id}@flujo`, `DTSTAMP:${utc(new Date())}`,
+    t.allDay ? `DTSTART;VALUE=DATE:${day(t.start)}` : `DTSTART:${utc(t.s)}`, t.allDay ? `DTEND;VALUE=DATE:${day(t.end)}` : `DTEND:${utc(t.e)}`,
+    `SUMMARY:${x(it.text)}`, evBody(it) ? `DESCRIPTION:${x(evBody(it))}` : '', 'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n') + '\r\n';
+}
+function markSent(it){ it.calAt = Date.now(); save(); if (dlg.open) dlg.close(); render(); }
+function calDialog(it){
+  const when = dateLabel(it.date) + (it.time ? `, ${it.time} (${DEFAULT_MIN} min)` : ', todo el día');
+  const opt = (a, icon, title, sub) => `<button type="button" class="choice" data-a="${a}" data-id="${it.id}">${ic(icon)}<span><b>${title}</b><span>${sub}</span></span></button>`;
+  openDialog('Enviar a tu calendario', `<p class="stuff" style="margin-top:0">${esc(it.text)}<br><span class="small muted" style="font-family:var(--font-ui)">${esc(when)}</span></p>
+    <div class="choices">${opt('cal-outlook','send','Abrir en Outlook / Hotmail','Se abre el evento ya rellenado en tu cuenta; revisa y toca Guardar')}
+    ${opt('cal-ics','calendar','Descargar archivo de calendario (.ics)','Para abrirlo con la app de Outlook u otro calendario del teléfono')}</div>
+    <p class="small muted" style="margin-top:16px">El texto, la fecha y las notas de esta acción se envían a Microsoft al abrir Outlook. Flujo no puede comprobar si guardaste el evento, y los cambios que hagas después aquí no se actualizan allá.</p>`,
+    `<button type="button" class="btn" data-a="dlg-close">Cerrar</button>`);
+}
+
 /* ================= Acciones (clics) ================= */
 const actions = {
   nav: b => { if (dlg.open) dlg.close(); go(b.dataset.view); },
@@ -837,6 +872,9 @@ const actions = {
   'clear-done'(){ const n = count('done'); confirmDlg('Borrar el registro de hechas', `Se eliminarán ${plural(n,'acción completada','acciones completadas')} de forma definitiva.`, 'Borrar registro', () => commit(() => { state.items = state.items.filter(i => i.list !== 'done'); }, 'Registro borrado')); },
   activate(b){ const it = byId(b.dataset.id); if (it) commit(() => { it.list = 'inbox'; it.movedAt = Date.now(); }, 'Devuelto a la bandeja para aclararlo'); },
   edit(b){ const it = byId(b.dataset.id); if (it) { editDialog({...it}); setTimeout(() => $('#e-text')?.focus(), 0); } },
+  'to-cal'(b){ const it = byId(b.dataset.id); if (!it || it.list !== 'calendar' || !it.date) return toast('Esa acción ya no está en el calendario.', {error:true}); b.closest('.toast')?.remove(); calDialog(it); },
+  'cal-outlook'(b){ const it = byId(b.dataset.id); if (!it) return; window.open(outlookUrl(it), '_blank', 'noopener'); markSent(it); toast('Outlook se abrió en otra pestaña: revisa el evento y guárdalo allí'); },
+  'cal-ics'(b){ const it = byId(b.dataset.id); if (!it) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([icsText(it)], {type:'text/calendar;charset=utf-8'})); a.download = 'flujo-evento.ics'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); markSent(it); toast('Archivo descargado: ábrelo y elige tu calendario para guardarlo'); },
   'clear-filters'(){ ui.filters = {ctx:'', min:'', energy:''}; render(); },
   'clear-ref'(){ ui.refQuery = ''; render(); $('#ref-q')?.focus(); },
   'open-project': b => go('project', {projectId:b.dataset.id}),
@@ -883,7 +921,7 @@ const forms = {
     dlg.close();
     commit(() => { Object.assign(it, {text:cap1(d.text), notes:d.notes, list:d.list, context:d.list==='next'?d.context:'', minutes:d.list==='next'?d.minutes:0, energy:d.list==='next'?d.energy:'',
       date:d.list==='calendar'?d.date:'', time:d.list==='calendar'?d.time:'', who:d.list==='waiting'?d.who:'', projectId:OPEN.includes(d.list)?d.projectId:''}); if (moved) it.movedAt = Date.now(); },
-      moved ? `Movido a ${VIEWS[d.list][0]}` : 'Cambios guardados'); },
+      moved ? `Movido a ${VIEWS[d.list][0]}` : 'Cambios guardados', d.list === 'calendar' ? {a:'to-cal', id:it.id, label:'Enviar a Outlook'} : null); },
   project(){ const name = $('#pn').value.trim(), id = $('#pn-id').value; if (!name) return fail('pn-err','Escribe el nombre del proyecto.');
     dlg.close();
     if (id) commit(() => { proj(id).name = cap1(name); }, 'Proyecto renombrado');

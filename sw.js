@@ -1,6 +1,6 @@
 /* Flujo — service worker: deja la app disponible sin conexión.
    Sube el número de versión cada vez que publiques cambios. */
-const CACHE = 'flujo-v1';
+const CACHE = 'flujo-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
