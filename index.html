@@ -847,9 +847,12 @@ function calDialog(it){
   const when = dateLabel(it.date) + (it.time ? `, ${it.time} (${DEFAULT_MIN} min)` : ', todo el día');
   const opt = (a, icon, title, sub) => `<button type="button" class="choice" data-a="${a}" data-id="${it.id}">${ic(icon)}<span><b>${title}</b><span>${sub}</span></span></button>`;
   openDialog('Enviar a tu calendario', `<p class="stuff" style="margin-top:0">${esc(it.text)}<br><span class="small muted" style="font-family:var(--font-ui)">${esc(when)}</span></p>
-    <div class="choices">${opt('cal-outlook','send','Abrir en Outlook / Hotmail','Se abre el evento ya rellenado en tu cuenta; revisa y toca Guardar')}
-    ${opt('cal-ics','calendar','Descargar archivo de calendario (.ics)','Para abrirlo con la app de Outlook u otro calendario del teléfono')}</div>
-    <p class="small muted" style="margin-top:16px">El texto, la fecha y las notas de esta acción se envían a Microsoft al abrir Outlook. Flujo no puede comprobar si guardaste el evento, y los cambios que hagas después aquí no se actualizan allá.</p>`,
+    <div class="choices">${ANDROID || IOS
+      ? opt('cal-ics','calendar','Añadir al calendario del teléfono','Se descarga el evento; ábrelo, elige tu cuenta de Hotmail y toca Guardar')
+      : opt('cal-outlook','send','Abrir en Outlook / Hotmail','Se abre el evento ya rellenado en tu cuenta; revisa y toca Guardar') + opt('cal-ics','calendar','Descargar archivo de calendario (.ics)','Para abrirlo con Outlook u otro programa de calendario')}</div>
+    <p class="small muted" style="margin-top:16px">${ANDROID || IOS
+      ? 'Para que llegue a Hotmail, tu cuenta de Hotmail debe estar añadida al teléfono (app de Outlook o cuentas del teléfono). Flujo no puede comprobar si guardaste el evento, y los cambios que hagas después aquí no se actualizan allá.'
+      : 'El texto, la fecha y las notas de esta acción se envían a Microsoft al abrir Outlook. Flujo no puede comprobar si guardaste el evento, y los cambios que hagas después aquí no se actualizan allá.'}</p>`,
     `<button type="button" class="btn" data-a="dlg-close">Cerrar</button>`);
 }
 
@@ -1016,7 +1019,7 @@ const actions = {
   edit(b){ const it = byId(b.dataset.id); if (it) { editDialog({...it}); setTimeout(() => $('#e-text')?.focus(), 0); } },
   'to-cal'(b){ const it = byId(b.dataset.id); if (!it || it.list !== 'calendar' || !it.date) return toast('Esa acción ya no está en el calendario.', {error:true}); b.closest('.toast')?.remove(); calDialog(it); },
   'cal-outlook'(b){ const it = byId(b.dataset.id); if (!it) return; window.open(outlookUrl(it), '_blank', 'noopener'); markSent(it); toast('Outlook se abrió en otra pestaña: revisa el evento y guárdalo allí'); },
-  'cal-ics'(b){ const it = byId(b.dataset.id); if (!it) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([icsText(it)], {type:'text/calendar;charset=utf-8'})); a.download = 'flujo-evento.ics'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); markSent(it); toast('Archivo descargado: ábrelo y elige tu calendario para guardarlo'); },
+  'cal-ics'(b){ const it = byId(b.dataset.id); if (!it) return; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([icsText(it)], {type:'text/calendar;charset=utf-8'})); a.download = 'flujo-evento.ics'; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); markSent(it); toast(ANDROID ? 'Evento descargado: toca «Abrir» en el aviso de descarga y guárdalo en tu calendario de Hotmail' : 'Archivo descargado: ábrelo y elige tu calendario para guardarlo'); },
   'ms-sync'(){ syncNow(true); },
   'ms-reconnect'(){ msLogin(false); },
   'ms-disconnect'(){ confirmDlg('Desconectar Outlook', 'Flujo dejará de enviar cambios y borrará de este dispositivo el permiso de Microsoft. Los eventos que ya están en tu calendario de Outlook se quedan allí.', 'Desconectar', () => {
