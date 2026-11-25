@@ -136,6 +136,7 @@ label,.label{display:block;font-size:var(--t-sm);font-weight:600;margin-bottom:v
 .row-main{flex:1;min-width:0;padding:10px var(--s2)}
 .row-text{overflow-wrap:anywhere}
 .row-note{font-size:var(--t-sm);color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:var(--s1)}
+.row-main>.btn{display:flex;margin-top:var(--s3)}
 .row-acts{display:flex;flex-wrap:wrap;justify-content:flex-end}
 .meta{display:flex;flex-wrap:wrap;gap:var(--s1);margin-top:var(--s1)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:1px var(--s2);border-radius:var(--r-pill);background:var(--surface-2);font-size:var(--t-xs);color:var(--ink)}
@@ -200,10 +201,10 @@ dialog::backdrop{background:var(--backdrop)}
 .dlg-foot .left{margin-right:auto}
 #toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:72px;z-index:60;display:flex;flex-direction:column;gap:var(--s2);width:min(480px,calc(100vw - 24px))}
 @media (min-width:900px){#toasts{bottom:var(--s5)}}
-.toast{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s2) var(--s2) var(--s4);border-radius:var(--r1);background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:var(--t-sm)}
-.toast.err{background:var(--err);color:var(--surface)}
-.toast{flex-wrap:wrap}.toast span{flex:1 1 60%}
-.toast button{min-height:var(--hit);padding:0 var(--s3);border:1px solid currentColor;border-radius:var(--r1);background:none;color:inherit;font-weight:600;cursor:pointer}
+.toast{display:flex;align-items:center;gap:var(--s2);padding:0 0 0 var(--s4);border:1px solid var(--border);border-radius:var(--r2);background:var(--surface);color:var(--ink);box-shadow:var(--shadow);font-size:var(--t-sm)}
+.toast.err{background:var(--err-soft);color:var(--err);border-color:currentColor}
+.toast span{flex:1 1 auto;min-width:0;padding:var(--s2) 0}
+.toast button{min-height:var(--hit);padding:0 var(--s3);border:1px solid currentColor;border-radius:var(--r1);background:none;color:inherit;font-weight:600;cursor:pointer;flex:none;border-color:var(--border)}
 .toast button:hover{opacity:.8}
 .seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r1);overflow:hidden}
 .seg label{margin:0}
@@ -414,7 +415,7 @@ function row(it, o={}){
   if (it.list === 'calendar' && !msOn()) acts.push(iconBtn('to-cal','send', it.calAt ? 'Volver a enviar a mi calendario' : 'Enviar a mi calendario de Outlook'));
   if (!['trash','done'].includes(it.list)) { acts.push(iconBtn('edit','edit','Editar')); acts.push(iconBtn('trash','trash','Mover a la papelera')); }
   const tick = OPEN.includes(it.list) ? `<button class="tick" data-a="complete" data-id="${it.id}" aria-label="Marcar como ${it.list==='waiting'?'recibida':'hecha'}: ${esc(it.text)}" title="Marcar como ${it.list==='waiting'?'recibida':'hecha'}">${ic('check')}</button>` : '';
-  return `<li class="row">${tick}<div class="row-main"><span class="row-text">${esc(it.text)}</span>${badges(it,o)}${it.notes ? `<p class="row-note">${esc(it.notes)}</p>` : ''}</div><div class="row-acts">${acts.join('')}</div></li>`;
+  return `<li class="row">${tick}<div class="row-main"><span class="row-text">${esc(it.text)}</span>${badges(it,o)}${it.notes ? `<p class="row-note">${esc(it.notes)}</p>` : ''}${it.list === 'inbox' ? `<button class="btn" data-a="clarify-one" data-id="${it.id}" aria-label="Aclarar: ${esc(it.text)}">Aclarar</button>` : ''}</div><div class="row-acts">${acts.join('')}</div></li>`;
 }
 const rows = (list, o) => `<ul class="rows">${list.map(i => row(i,o)).join('')}</ul>`;
 const head = (title, sub, action='') => `<div class="page-head"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${action}</div>`;
@@ -434,7 +435,7 @@ const views = {
       empty('inbox','La bandeja está vacía','Escribe o dicta arriba lo primero que te venga a la mente: pendientes, ideas, compromisos, recados.',
         (SR ? `<button class="btn primary" data-a="mic-capture">${ic('mic')}Dictar ahora</button>` : `<button class="btn primary" data-a="focus-capture">${ic('plus')}Escribir algo</button>`) +
         (!state.items.length && !state.projects.length ? `<button class="btn" data-a="seed">Cargar un ejemplo</button>` : ''));
-    return head('Bandeja de entrada','Captura sin decidir. Cuando tengas un momento, aclara cada elemento uno por uno.',
+    return head('Bandeja de entrada','Captura sin decidir. Aclara todo de corrido con el botón verde, o toca «Aclarar» en el elemento que quieras.',
       `<button class="btn primary" data-a="nav" data-view="clarify">Aclarar ${plural(l.length,'elemento','elementos')}${ic('right')}</button>`) + rows(l);
   },
   next(){
@@ -672,7 +673,7 @@ function toast(msg, o={}){
   const box = $('#toasts'); box.replaceChildren();
   const t = document.createElement('div'); t.className = 'toast' + (o.error ? ' err' : '');
   t.innerHTML = `<span>${esc(msg)}</span>${o.action ? `<button data-a="${o.action.a}" data-id="${o.action.id}">${esc(o.action.label)}</button>` : ''}${o.undo ? `<button data-a="undo">Deshacer</button>` : ''}<button data-a="toast-close" aria-label="Cerrar aviso" style="border:0">${ic('x')}</button>`;
-  box.append(t); setTimeout(() => t.remove(), o.error ? 9000 : 7000);
+  box.append(t); setTimeout(() => t.remove(), o.error ? 9000 : 5000);
 }
 const dlg = $('#dlg');
 function openDialog(title, body, foot, form){
@@ -690,10 +691,10 @@ const fail = (id, msg) => { const e = $('#'+id); if (!e) return; e.textContent =
 let dict = null;
 function setMic(btn, on, msg){ btn.setAttribute('aria-pressed', on); btn.classList.toggle('rec', on); btn.setAttribute('aria-label', on ? 'Detener el dictado' : 'Dictar con la voz'); $('#micStatus').textContent = msg || ''; }
 function stopDictation(){ if (!dict) return; const d = dict; dict = null; try { d.rec.stop(); } catch (_) {} setMic(d.btn, false); }
-function toggleDictation(input, btn){
+function toggleDictation(input, btn, force){
   if (!SR) return toast('Este navegador no ofrece reconocimiento de voz. Usa Chrome o Edge, o escribe el texto.', {error:true});
   if (dict){ const same = dict.input === input; stopDictation(); if (same) return; }
-  const auto = input.id === 'cap' && state.prefs.autoAdd;
+  const auto = input.id === 'cap' && (force || state.prefs.autoAdd);
   /* En Android el modo continuo repite palabras: se dicta frase a frase y se reanuda solo tras cada una. */
   const rec = new SR(); rec.lang = state.prefs.lang; rec.interimResults = true; rec.continuous = !ANDROID;
   const base = auto ? '' : input.value.trim(); let fin = '', got = false, failed = false;
@@ -731,7 +732,7 @@ const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 function newItem(text, extra){ return Object.assign({id:uid(), text:cap1(text.trim()).slice(0,300), notes:'', list:'inbox', prevList:'', context:'', minutes:0, energy:'', projectId:'', date:'', time:'', who:'', createdAt:Date.now(), movedAt:Date.now(), doneAt:0, calAt:0}, extra); }
 function addInbox(text, quiet){
   text = text.trim(); if (!text) return false;
-  commit(() => state.items.push(newItem(text)), quiet ? '' : 'Capturado en la bandeja de entrada');
+  commit(() => state.items.push(newItem(text)), '');
   if (quiet) $('#micStatus').textContent = `Guardado: «${cap1(text)}». Sigue hablando o toca el micrófono para terminar.`;
   return true;
 }
@@ -743,7 +744,7 @@ function checkOrphan(pid){
     `<button type="button" class="btn ghost left" data-a="dlg-close">Decidir después</button><button type="button" class="btn" data-a="finish-project" data-id="${pid}">El proyecto está terminado</button><button type="submit" class="btn primary">Añadir acción</button>`, 'orphan');
   setTimeout(() => $('#o-text')?.focus(), 0);
 }
-function newWiz(){ const it = inList('inbox')[0]; return it ? {id:it.id, step:'what', hist:[], data:{text:it.text}} : null; }
+function newWiz(id){ const it = id ? byId(id) : inList('inbox')[0]; return it && it.list === 'inbox' ? {id:it.id, step:'what', hist:[], data:{text:it.text}, single:!!id} : null; }
 function wizGo(step){ const w = ui.wiz; w.hist.push(w.step); w.step = step; render(); focusWiz(); }
 function focusWiz(){ const el = $('#main .card input[type=text], #main .card input[type=date], #main .card .choice, #main .card .btn.primary'); el?.focus(); }
 function wizFinish(dest){
@@ -760,7 +761,7 @@ function wizFinish(dest){
     Object.assign(it, {list:dest, prevList:'inbox', movedAt:Date.now(), projectId:pid, doneAt:dest === 'done' ? Date.now() : 0,
       who:dest === 'waiting' ? d.who : '', date:dest === 'calendar' ? d.date : '', time:dest === 'calendar' ? d.time : '',
       context:dest === 'next' ? d.ctx : '', minutes:dest === 'next' ? +d.min || 0 : 0, energy:dest === 'next' ? d.energy : ''});
-    ui.wiz = newWiz();
+    if (w.single){ ui.wiz = null; ui.view = 'inbox'; } else ui.wiz = newWiz();
   }, `Enviado a ${labels[dest]}`, dest === 'calendar' && !msOn() ? {a:'to-cal', id:w.id, label:'Enviar a Outlook'} : null);
   focusWiz();
   if (dest === 'done' && pid) checkOrphan(pid);
@@ -1003,6 +1004,7 @@ const actions = {
   'toast-close': b => b.closest('.toast').remove(),
   undo(b){ if (!undoSnap) return; try { state = normalize(JSON.parse(undoSnap)); } catch (_) { return; } undoSnap = null; save(); applyTheme(); render(); b.closest('.toast').remove(); toast('Cambio deshecho'); },
   mic(b){ const input = $('#' + b.dataset.target); if (input) toggleDictation(input, b); },
+  'clarify-one'(b){ const w = newWiz(b.dataset.id); if (!w) return; ui.view = 'clarify'; ui.wiz = w; render(); $('#main').focus({preventScroll:true}); window.scrollTo(0,0); focusWiz(); },
   'mic-capture'(){ toggleDictation($('#cap'), $('#capMic')); },
   'focus-capture'(){ $('#cap').focus(); },
   seed,
@@ -1115,6 +1117,12 @@ if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWor
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 window.addEventListener('online', () => scheduleSync());
 msReturn().catch(() => {}).then(() => { if (msOn() && ms.status !== 'expired'){ msBoot = true; syncNow(); } });
+/* Acceso directo «Dictar»: abre la app escuchando y guarda cada frase en la bandeja. */
+if (new URLSearchParams(location.search).has('dictar')){
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (SR) setTimeout(() => { if (!dict) toggleDictation($('#cap'), $('#capMic'), true); }, 300);
+  else toast('Este navegador no ofrece reconocimiento de voz. Escribe el texto en la barra de arriba.', {error:true});
+}
 if (loadFailed) toast('Los datos guardados estaban dañados y no se pudieron abrir. Se conservó una copia interna y la app empezó vacía.', {error:true});
 </script>
 </body>
